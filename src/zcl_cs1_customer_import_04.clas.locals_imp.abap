@@ -59,7 +59,7 @@ CLASS lcl_customer_import DEFINITION.
       RAISING
         cx_number_ranges.
 
-   CLASS-METHODS get_next_id
+    CLASS-METHODS get_next_id
       RETURNING
         VALUE(rv_id) TYPE zid1
       RAISING
@@ -276,9 +276,6 @@ CLASS lcl_customer_import IMPLEMENTATION.
     DATA lv_last_date TYPE zlast_date1.
 
 
-    DATA lt_failed_strings TYPE string_table.
-    DATA lv_final_count TYPE i.
-
     ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!++++++++++
     CONSTANTS lc_method_name TYPE string VALUE '=>IMPORT_CUSTOMERS'.
 
@@ -298,10 +295,11 @@ CLASS lcl_customer_import IMPLEMENTATION.
     lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id_value
                                DEFAULT cl_abap_context_info=>get_system_date( ) ).
 
+    SELECT * FROM zcs1_customers INTO TABLE @gt_customers.
 
-    LOOP AT me->tt_customers  INTO DATA(ls_import).
+    LOOP AT me->tt_customers  ASSIGNING FIELD-SYMBOL(<fs_import>).
       TRY.
-          MOVE-CORRESPONDING ls_import TO gs_customers.
+          MOVE-CORRESPONDING <fs_import> TO gs_customers.
 
           "" Schon mal die Standartwerte hier festsetzen später noch mit Service Tabelle
           gs_customers-country = lv_country.
@@ -310,51 +308,38 @@ CLASS lcl_customer_import IMPLEMENTATION.
           gs_customers-last_date = lv_last_date.
 
           " Prüfen, ob der Kunde unter dieser Adresse schon existiert
-          SELECT SINGLE customerid
-            FROM zcs1_customers
-            WHERE company  = @gs_customers-company
-              AND last_name   = @gs_customers-last_name
-              AND first_name   = @gs_customers-first_name
-              AND street   = @gs_customers-street
-              AND postcode = @gs_customers-postcode
-              AND city     = @gs_customers-city
-            INTO @DATA(lv_existing_id).
+          ASSIGN gt_customers[ company  = gs_customers-company
+                     street   = gs_customers-street
+                     postcode = gs_customers-postcode
+                     city     = gs_customers-city ] TO FIELD-SYMBOL(<lv_existing_id>).
 
           IF sy-subrc <> 0.
             "" FALL 1: Customer existiert nicht, anfügen
             gs_customers-customerid = lcl_customer_import=>get_next_customer_id( ).
 
             MODIFY me->tt_customers FROM VALUE #( customers_id = gs_customers-customerid )
-                TRANSPORTING customers_id WHERE company = ls_import-company
-                                            AND  street = ls_import-street
-                                            AND postcode = ls_import-postcode
-                                            AND city = ls_import-city.
+                TRANSPORTING customers_id WHERE company = <fs_import>-company
+                                            AND  street = <fs_import>-street
+                                            AND postcode = <fs_import>-postcode
+                                            AND city = <fs_import>-city.
 
-            INSERT zcs1_customers FROM @gs_customers.
+            INSERT gs_customers INTO TABLE gt_customers.
 
-            ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!++++++++++
-            " 1. Feldlängen-Prüfung via RTTI (Beispiel für Feld 'COMPANY')
-            " Wir holen uns die Beschreibung der Struktur von ls_cust, die auf zcs1_customers geht!
             DATA(lo_struct) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_data( gs_customers ) ).
 
-            " Wir prüfen die Länge der 'COMPANY' (Länge in ABAP ist in Bytes/Zeichen)
-            " Es muss COMPANY übergeben werden nicht company wie in der Tabelle!
             DATA(lv_max_len) = lo_struct->get_component_type( 'COMPANY' )->length / cl_abap_char_utilities=>charsize.
-*          DATA(lv_max_cust) = strlen( ls_import-company ).
 
-            IF strlen( ls_import-company ) > lv_max_len.
-              " hier die Raise exeption einarbeiten und aufrufen
+            IF strlen( <fs_import>-company ) > lv_max_len.
+
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>company_to_long
                   column_name = 'COMPANY'
                   filename    = lc_method_name.
-*                    line_number  = sy-tabix.
             ENDIF.
-          ELSE.
-            " FALL 2: Vorhanden -> Bestehende ID zuweisen und MODIFY
-            gs_customers-customerid = lv_existing_id.
-            MODIFY zcs1_customers FROM @gs_customers.
+*          ELSE.
+*            gs_customers-customerid = <lv_existing_id>-customerid.
+*            MODIFY zcs1_customers FROM @gs_customers.
 
           ENDIF.
 
@@ -372,23 +357,25 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
           "Fehlertext für das BAdI wegschreiben in die globale Tabelle markieren
           MODIFY me->tt_customers FROM VALUE #( company_Err = abap_true )
-              TRANSPORTING company_Err WHERE company = ls_import-company
-                                          AND  street = ls_import-street
-                                          AND postcode = ls_import-postcode
-                                          AND city = ls_import-city.
-          try.
-            INSERT zcs1_import_err FROM @( VALUE #(
-                 " Hier hast du die ID (entweder neu oder existierend)
-                                   id  = lcl_customer_import=>get_next_id( )
-                           description = lv_full_text ) ).
-            CATCH cx_number_ranges INTO data(lx_nr_err2).
-                DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
-          endtry.
-
-
-
+              TRANSPORTING company_Err WHERE company = <fs_import>-company
+                                          AND  street = <fs_import>-street
+                                          AND postcode = <fs_import>-postcode
+                                          AND city = <fs_import>-city.
+          TRY.
+              INSERT zcs1_import_err FROM @( VALUE #(
+                   " Hier hast du die ID (entweder neu oder existierend)
+                                     id  = lcl_customer_import=>get_next_id( )
+                             description = lv_full_text ) ).
+            CATCH cx_number_ranges INTO DATA(lx_nr_err2).
+              DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
+          ENDTRY.
       ENDTRY.
     ENDLOOP.
+
+    IF gt_customers IS NOT INITIAL.
+      MODIFY zcs1_customers FROM TABLE @gt_customers.
+    ENDIF.
+
   ENDMETHOD.
 
 

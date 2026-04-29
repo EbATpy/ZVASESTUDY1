@@ -1,0 +1,6 @@
+@EndUserText.label: 'ZC_CS1_CUSTORDERS'
+@MappingRole: true
+define role ZC_CS1_CUSTORDERS {
+  grant select on ZC_CS1_CUSTORDERS
+  where INHERITING CONDITIONS FROM ENTITY ZR_CS1_CUSTORDERS REPLACING { ROOT WITH _BaseEntity };
+}

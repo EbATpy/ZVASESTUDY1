@@ -2,9 +2,6 @@ CLASS lcl_customer_import DEFINITION.
 
   PUBLIC SECTION.
 
-
-
-
     TYPES: BEGIN OF ty_import,
              company  TYPE string,
              street   TYPE string,
@@ -342,16 +339,16 @@ CLASS lcl_customer_import IMPLEMENTATION.
     SELECT * FROM zcs1_service INTO TABLE @DATA(lt_service).
 
     "" Country
-    lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id_value
+    lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id
                                 DEFAULT 'D' ).
     "" Currency
-    lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id_value
+    lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id
                                 DEFAULT 'EUR' ).
     "" Currency_target1
-    lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id_value
+    lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id
                                     DEFAULT 'USD' ).
 
-    lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id_value
+    lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id
                                DEFAULT cl_abap_context_info=>get_system_date( ) ).
 
     SELECT * FROM zcs1_customers INTO TABLE @gt_customers.
@@ -392,9 +389,9 @@ CLASS lcl_customer_import IMPLEMENTATION.
                   column_name = 'COMPANY'
                   filename    = lc_method_name.
             ENDIF.
-*          ELSE.
-*            gs_customers-customerid = <lv_existing_id>-customerid.
-*            MODIFY zcs1_customers FROM @gs_customers.
+          ELSE.
+            gs_customers-customerid = <lv_existing_id>-customerid.
+            MODIFY zcs1_customers FROM @gs_customers.
 
           ENDIF.
 
@@ -546,7 +543,9 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
 
     DATA lt_customers TYPE tt_output.
-    lt_customers = me->tt_customers.
+   lt_customers = VALUE #( FOR line IN me->tt_customers
+   WHERE ( customers_id IS NOT INITIAL )   ( line ) ).
+
 
     LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
       " Erste Ebene: ty_output
@@ -560,36 +559,39 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
         TRY.
 
-            IF lv_email_err IS NOT INITIAL.
-              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
+            IF lv_email_err = abap_true.
+             <ls_customer>-email_err = abap_true.
+             RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>regularexpression_email
                   column_name = 'Email'
                   filename    = column_name.
 
-                  <ls_customer>-email_err = abap_true.
 
 
 
-            ELSEIF  lv_phone_err IS NOT INITIAL.
+
+            ELSEIF  lv_phone_err  = abap_true.
+             <ls_customer>-tele_err = abap_true.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>regularexpression_email
                   column_name = 'Tele'
                   filename    = column_name.
 
-                <ls_customer>-tele_err = abap_true.
 
 
 
-            ELSEIF  lv_phone_err IS NOT INITIAL.
+
+            ELSEIF  lv_fax_err  = abap_true.
+            <ls_customer>-telfax_err = abap_true.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>RegularExpression_TelFax
                   column_name = 'Telefax'
                   filename    = column_name.
 
-                   <ls_customer>-telfax_err = abap_true.
+
 
             ENDIF.
 
@@ -600,39 +602,43 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
         ENDTRY.
 
+
+
         me->tt_badi_error = VALUE #( BASE tt_badi_error
-                 FOR ls1 IN me->tt_customers
+                 FOR ls IN me->tt_customers
                  WHERE ( email_err = abap_true )
-              ( note_err = lv_error_note
-*                company  = ls-company
-*                street   = ls-street
-*                postcode = ls-postcode
-*                city     = ls-city
+              ( customers_id = ls-customers_id
+                company  = ls-company
+                street   = ls-street
+                postcode = ls-postcode
+                city     = ls-city
+                note_err = lv_error_note
+
                  ) ).
 
 
 
+
         me->tt_badi_error = VALUE #( BASE tt_badi_error
-               FOR ls2 IN me->tt_customers
+               FOR ls IN me->tt_customers
               WHERE ( Tele_err = abap_true )
-                   (  note_err = lv_error_note
-*                      company  = ls-company
-*                      street   = ls-street
-*                      postcode = ls-postcode
-*                      city     = ls-city
- ) ).
-*
+                   (  customers_id = ls-customers_id
+                      company  = ls-company
+                      street   = ls-street
+                      postcode = ls-postcode
+                      city     = ls-city
+                      note_err = lv_error_note ) ).
 
 
         me->tt_badi_error = VALUE #( BASE tt_badi_error
-              FOR ls3 IN me->tt_customers
+              FOR ls IN me->tt_customers
              WHERE ( Telfax_err = abap_true )
-                      ( note_err = lv_error_note
-*                        company  = ls-company
-*                        street   = ls-street
-*                        postcode = ls-postcode
-*                        city     = ls-city
-) ).
+                      ( customers_id = ls-customers_id
+                        company  = ls-company
+                        street   = ls-street
+                        postcode = ls-postcode
+                        city     = ls-city
+                        note_err = lv_error_note ) ).
 
         ENDLOOP.
         ENDLOOP.

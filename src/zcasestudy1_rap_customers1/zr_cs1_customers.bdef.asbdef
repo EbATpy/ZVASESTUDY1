@@ -1,0 +1,75 @@
+managed implementation in class ZBP_R_CS1_CUSTOMERS unique;
+strict ( 2 );
+with draft;
+extensible;
+define behavior for ZR_CS1_CUSTOMERS alias CUSTOMERS
+persistent table ZCS1_CUSTOMERS
+extensible
+draft table ZCS1_CUSTOMERS_D
+etag master LocalLastChangedAt
+lock master total etag LastChangedAt
+authorization master( global )
+{
+  field ( mandatory : create )
+   Customerid;
+
+  field ( readonly )
+   CreatedBy,
+   CreatedAt,
+   LocalLastChangedBy,
+   LocalLastChangedAt,
+   LastChangedAt;
+
+  field ( readonly : update )
+   Customerid;
+
+
+  create;
+  update;
+  delete;
+
+  validation validateEmail on save { field Email; }
+  validation validatePhone on save { field Phone; }
+  validation validateFax on save { field Fax; }
+
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare;
+
+  mapping for ZCS1_CUSTOMERS corresponding extensible
+  {
+    Customerid = CUSTOMERID;
+    Salutation = SALUTATION;
+    LastName = LAST_NAME;
+    FirstName = FIRST_NAME;
+    Company = COMPANY;
+    Street = STREET;
+    City = CITY;
+    Country = COUNTRY;
+    Postcode = POSTCODE;
+    AccLock = ACC_LOCK;
+    LastDate = LAST_DATE;
+    SalesVolume = SALES_VOLUME;
+    SalesVolumeTarget = SALES_VOLUME_TARGET;
+    ChangeRateDate = CHANGE_RATE_DATE;
+    Fax = FAX;
+    Phone = PHONE;
+    Email = EMAIL;
+    Url = URL;
+    Currency = CURRENCY;
+    CurrencyTarget = CURRENCY_TARGET;
+    Language = LANGUAGE;
+    Weblogin = WEBLOGIN;
+    Webpw = WEBPW;
+    Memo = MEMO;
+    CreatedBy = CREATED_BY;
+    CreatedAt = CREATED_AT;
+    LocalLastChangedBy = LOCAL_LAST_CHANGED_BY;
+    LocalLastChangedAt = LOCAL_LAST_CHANGED_AT;
+    LastChangedAt = LAST_CHANGED_AT;
+  }
+
+}

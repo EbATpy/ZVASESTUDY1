@@ -36,7 +36,23 @@ CLASS zcl_cs1_insert_other_tables IMPLEMENTATION.
       lv_counter = lv_counter + 1.
     ENDIF.
 *    RETURN.
-*
+   data lt_customers type TABLE of zcs1_customers.
+
+   lt_customers = VALUE #(
+      ( client = sy-mandt customerid = '000001' first_name = 'Max'  last_name = 'Muster' )
+      ( client = sy-mandt customerid = '000002' first_name = 'Maxi' last_name = 'Musterfrau' )
+      ( client = sy-mandt customerid = '000005' first_name = 'Max'  last_name = 'Muster' )
+                            ).
+
+    " 3. Einfügen in die Tabelle
+    INSERT zcs1_customers FROM TABLE @lt_customers.
+
+  IF sy-subrc = 0.
+      lv_counter = lv_counter + 1.
+    ENDIF.
+out->write( lv_counter ).
+
+
 *    lt_service = VALUE #(
 *          ( id = 'RegularExpression' id_value = '222'     active = 'X' )
 *          ( id = 'COUNTRY'           id_value = 'DE'      active = 'X' )

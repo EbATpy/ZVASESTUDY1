@@ -613,18 +613,18 @@ CLASS lcl_customer_import IMPLEMENTATION.
          ENDTRY.
 
               me->tt_badi_error = VALUE #( BASE tt_badi_error
-                       FOR ls IN me->tt_customers
+                       FOR ls1 IN me->tt_customers
                        WHERE ( email_err = abap_true )
                     ( note_err = lv_error_note )
                      ).
 
               me->tt_badi_error = VALUE #( BASE tt_badi_error
-                     FOR ls1 IN me->tt_customers
+                     FOR ls2 IN me->tt_customers
                     WHERE ( Tele_err = abap_true )
                             (  note_err = lv_error_note ) ).
 
               me->tt_badi_error = VALUE #( BASE tt_badi_error
-                    FOR ls2 IN me->tt_customers
+                    FOR ls3 IN me->tt_customers
                    WHERE ( Telfax_err = abap_true )
                             ( note_err = lv_error_note ) ).
 

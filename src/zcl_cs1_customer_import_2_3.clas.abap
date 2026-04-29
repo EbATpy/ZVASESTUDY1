@@ -1,4 +1,4 @@
-CLASS zcl_cs1_customer_import DEFINITION
+CLASS zcl_cs1_customer_import_2_3 DEFINITION
   PUBLIC
 
   FINAL
@@ -9,7 +9,6 @@ CLASS zcl_cs1_customer_import DEFINITION
     INTERFACES if_oo_adt_classrun.
     INTERFACES if_apj_dt_exec_object.
     INTERFACES if_apj_rt_exec_object.
-    INTERFACES zif_cs1_validation.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -18,7 +17,7 @@ CLASS zcl_cs1_customer_import DEFINITION
 
 ENDCLASS.
 
-CLASS zcl_cs1_customer_import IMPLEMENTATION.
+CLASS zcl_cs1_customer_import_2_3 IMPLEMENTATION.
 
   METHOD if_oo_adt_classrun~main.
     main_programm( io_out = out ).
@@ -93,19 +92,6 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
         io_out->write( |Datei: { lx_error->filename } Zeile: { lx_error->line_number }| ).
     ENDTRY.
 *    out->write( lt_customs ).
-  ENDMETHOD.
-
-
-  METHOD zif_cs1_validation~is_email_valid.
-    rv_valid = lcl_customer_import=>is_email_valid( iv_email = CONV string( iv_email ) ).
-  ENDMETHOD.
-
-  METHOD zif_cs1_validation~is_phone_valid.
-   rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_phone ) ).
-  ENDMETHOD.
-
-  METHOD zif_cs1_validation~is_fax_valid.
-    rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_fax ) ).
   ENDMETHOD.
 
 ENDCLASS.
