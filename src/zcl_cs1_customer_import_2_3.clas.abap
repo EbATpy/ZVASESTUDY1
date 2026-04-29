@@ -62,22 +62,22 @@ CLASS zcl_cs1_customer_import_2_3 IMPLEMENTATION.
 *        out->write( obj->return_table( ) ).
 
         obj->import_customers( ).
-        io_out->write( '-------- return_table ----------' ).
-        io_out->write( obj->return_table( ) ).
+        "io_out->write( '-------- return_table ----------' ).
+        "io_out->write( obj->return_table( ) ).
 
         obj->new_customer_tab( ).
-        io_out->write( '-------- return_new_customer_tab_table ----------' ).
-        io_out->write( obj->return_new_customer_tab_table( ) ).
+        "io_out->write( '-------- return_new_customer_tab_table ----------' ).
+        "io_out->write( obj->return_new_customer_tab_table( ) ).
 
         obj->email_err_tab( ).
         io_out->write( '--------  Email_Tele_Telfax_Error ----------' ).
-        io_out->write( obj->Email_Tele_Telfax_Error( ) ).
-
-        obj->company_err_tab( ).
-        io_out->write( '-------- return_err_table ----------' ).
-        io_out->write( obj->return_err_table( ) ).
-
         io_out->write( obj->return_table( ) ).
+
+        "obj->company_err_tab( ).
+        "io_out->write( '-------- return_err_table ----------' ).
+        "io_out->write( obj->return_err_table( ) ).
+
+        "io_out->write( obj->return_table( ) ).
 
         obj->call_badi( ).
 *         out->write( obj-> ).

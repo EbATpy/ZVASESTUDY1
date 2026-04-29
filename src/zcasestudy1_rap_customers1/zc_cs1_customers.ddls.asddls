@@ -1,16 +1,18 @@
 @Metadata.allowExtensions: true
 @Metadata.ignorePropagatedAnnotations: true
-@Endusertext: {
-  Label: '###GENERATED Core Data Service Entity'
+
+@EndUserText: {
+  label: '###GENERATED Core Data Service Entity'
 }
-@Objectmodel: {
-  Sapobjectnodetype.Name: 'ZCS1_CUSTOMERS'
+@ObjectModel: {
+  sapObjectNodeType.name: 'ZCS1_CUSTOMERS'
 }
 @AccessControl.authorizationCheck: #MANDATORY
 define root view entity ZC_CS1_CUSTOMERS
-  provider contract TRANSACTIONAL_QUERY
+  provider contract transactional_query
   as projection on ZR_CS1_CUSTOMERS
-  association [1..1] to ZR_CS1_CUSTOMERS as _BaseEntity on $projection.CUSTOMERID = _BaseEntity.CUSTOMERID
+  association [1..1] to ZR_CS1_CUSTOMERS as _BaseEntity on $projection.Customerid = _BaseEntity.Customerid
+  
 {
   key Customerid,
   Salutation,
@@ -19,16 +21,36 @@ define root view entity ZC_CS1_CUSTOMERS
   Company,
   Street,
   City,
+  
+   @Consumption: {
+    valueHelpDefinition: [ {      
+      entity.name: 'I_Country',
+       entity.element: 'Country', 
+      useForValidation: true
+    } ]
+  }
   Country,
+  @Consumption.valueHelpDefinition: [{
+    entity: {
+        name: 'ZCS1_I_ZIPCITY', // Die Wertehilfe-Entität
+        element: 'Postcode'    // Das Hauptfeld in der Wertehilfe
+    },
+    // Hier können mehrere Elemente gemappt werden
+    additionalBinding: [
+//        { localElement: 'Postcode', element: 'Postcode', usage: #FILTER_AND_RESULT },
+        { localElement: 'City', element: 'City', usage: #RESULT }
+//        { localElement: 'Country', element: 'Country', usage: #RESULT } // falls wir Country auch füllen wollen
+    ]
+}]
   Postcode,
   AccLock,
   LastDate,
   @Semantics: {
-    Amount.Currencycode: 'Currency'
+    amount.currencyCode: 'Currency'
   }
   SalesVolume,
   @Semantics: {
-    Amount.Currencycode: 'CurrencyTarget'
+    amount.currencyCode: 'CurrencyTarget'
   }
   SalesVolumeTarget,
   ChangeRateDate,
@@ -37,18 +59,18 @@ define root view entity ZC_CS1_CUSTOMERS
   Email,
   Url,
   @Consumption: {
-    Valuehelpdefinition: [ {
-      Entity.Element: 'Currency', 
-      Entity.Name: 'I_CurrencyStdVH', 
-      Useforvalidation: true
+    valueHelpDefinition: [ {
+      entity.element: 'Currency', 
+      entity.name: 'I_CurrencyStdVH', 
+      useForValidation: true
     } ]
   }
   Currency,
   @Consumption: {
-    Valuehelpdefinition: [ {
-      Entity.Element: 'Currency', 
-      Entity.Name: 'I_CurrencyStdVH', 
-      Useforvalidation: true
+    valueHelpDefinition: [ {
+      entity.element: 'CurrencyTarget', 
+      entity.name: 'I_CurrencyStdVH', 
+      useForValidation: true
     } ]
   }
   CurrencyTarget,
@@ -57,23 +79,23 @@ define root view entity ZC_CS1_CUSTOMERS
   Webpw,
   Memo,
   @Semantics: {
-    User.Createdby: true
+    user.createdBy: true
   }
   CreatedBy,
   @Semantics: {
-    Systemdatetime.Createdat: true
+    systemDateTime.createdAt: true
   }
   CreatedAt,
   @Semantics: {
-    User.Localinstancelastchangedby: true
+    user.localInstanceLastChangedBy: true
   }
   LocalLastChangedBy,
   @Semantics: {
-    Systemdatetime.Localinstancelastchangedat: true
+    systemDateTime.localInstanceLastChangedAt: true
   }
   LocalLastChangedAt,
   @Semantics: {
-    Systemdatetime.Lastchangedat: true
+    systemDateTime.lastChangedAt: true
   }
   LastChangedAt,
   _BaseEntity

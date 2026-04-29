@@ -4,11 +4,66 @@ CLASS lhc_zr_cs1_customers DEFINITION INHERITING FROM cl_abap_behavior_handler.
       get_global_authorizations FOR GLOBAL AUTHORIZATION IMPORTING  REQUEST requested_authorizations FOR customers RESULT result,
       validateEmail FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateEmail,
       validatePhone FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validatePhone,
-      validateFax   FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateFax.
+      validateFax   FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateFax,
+      getCity FOR DETERMINE ON SAVE
+        IMPORTING keys FOR customers~getCity.
 ENDCLASS.
 
 CLASS lhc_zr_cs1_customers IMPLEMENTATION.
 
+METHOD getcity.
+    READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
+     ENTITY customers
+     FIELDS ( postcode )
+     WITH CORRESPONDING #( keys )
+     RESULT DATA(lt_customers).
+
+    DATA lt_update TYPE TABLE FOR UPDATE zr_cs1_customers.
+    "" Version 2 mit ASSIGNING
+    LOOP AT lt_customers  ASSIGNING FIELD-SYMBOL(<ls_customers>). "" <ls_customers> = customers
+     " Nur suchen, wenn eine PLZ da ist
+      IF <ls_customers>-postcode IS NOT INITIAL.
+        SELECT SINGLE FROM ZCS1_I_ZIPCITY
+          FIELDS city "", country
+          WHERE postcode = @<ls_customers>-postcode
+          INTO ( @DATA(lv_city) ). "", @DATA(lv_country) ).
+
+        IF sy-subrc = 0.
+          " Nur updaten, wenn die Werte in der UI noch nicht passen
+          APPEND VALUE #( %tky = <ls_customers>-%tky
+                          City = lv_city ) TO lt_update.
+                          ""Country = lv_country ) TO lt_update.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+*    "" Version 1 mit into
+*    LOOP AT lt_customers  INTO DATA(ls_customers).
+*      " Nur suchen, wenn eine PLZ da ist
+*      IF ls_customers-postcode IS NOT INITIAL.
+*        SELECT SINGLE FROM ZCS04_I_Postcode
+*          FIELDS city, country
+*          WHERE postcode = @ls_customers-postcode
+*          INTO ( @DATA(lv_city), @DATA(lv_country) ).
+*
+*        IF sy-subrc = 0.
+*          " Nur updaten, wenn die Werte in der UI noch nicht passen
+*          APPEND VALUE #( %tky = ls_customers-%tky
+*                          City = lv_city
+*                          Country = lv_country ) TO lt_update.
+*        ENDIF.
+*      ENDIF.
+*    ENDLOOP.
+
+    " 2. Gesammeltes Update (außerhalb des Loops!)
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF zr_cs1_customers IN LOCAL MODE
+        ENTITY customers
+        UPDATE FIELDS ( City Country )
+        WITH lt_update.
+    ENDIF.
+
+  ENDMETHOD.
   METHOD get_global_authorizations.
   ENDMETHOD.
 
@@ -19,8 +74,7 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
       RESULT DATA(lt_customers).
     LOOP AT lt_customers INTO DATA(ls_customer) WHERE Email IS NOT INITIAL.
       DATA(lo_validator) = NEW zcl_cs1_customer_import( ).
-      IF ls_customer-Email = ''. ENDIF.
-      RETURN.
+      IF ls_customer-Email = ''.RETURN. ENDIF.
       IF lo_validator->zif_cs1_validation~is_email_valid( ls_customer-Email ) = abap_false.
         APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
         APPEND VALUE #( %tky        = ls_customer-%tky
@@ -37,12 +91,11 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
   METHOD validatePhone.
     READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
       ENTITY customers
-      FIELDS ( Email ) WITH CORRESPONDING #( keys )
+      FIELDS ( Phone ) WITH CORRESPONDING #( keys )
       RESULT DATA(lt_customers).
-    LOOP AT lt_customers INTO DATA(ls_customer) WHERE Email IS NOT INITIAL.
+    LOOP AT lt_customers INTO DATA(ls_customer) WHERE Phone IS NOT INITIAL.
       DATA(lo_validator) = NEW zcl_cs1_customer_import( ).
-      IF ls_customer-Phone = ''. ENDIF.
-      RETURN.
+      IF ls_customer-Phone = ''.RETURN. ENDIF.
       IF lo_validator->zif_cs1_validation~is_phone_valid( ls_customer-Phone ) = abap_false.
         APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
         APPEND VALUE #( %tky        = ls_customer-%tky
@@ -59,19 +112,18 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
   METHOD validateFax.
     READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
       ENTITY customers
-      FIELDS ( Email ) WITH CORRESPONDING #( keys )
+      FIELDS ( Fax ) WITH CORRESPONDING #( keys )
       RESULT DATA(lt_customers).
-    LOOP AT lt_customers INTO DATA(ls_customer) WHERE Email IS NOT INITIAL.
+    LOOP AT lt_customers INTO DATA(ls_customer) WHERE Fax IS NOT INITIAL.
       DATA(lo_validator) = NEW zcl_cs1_customer_import( ).
-      IF ls_customer-Fax = ''. ENDIF.
-      RETURN.
+      IF ls_customer-Fax = ''.RETURN. ENDIF.
       IF lo_validator->zif_cs1_validation~is_fax_valid( ls_customer-Fax ) = abap_false.
         APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
         APPEND VALUE #( %tky        = ls_customer-%tky
                         %state_area = 'VALIDATE_Phone'
                         %msg        = new_message_with_text(
                                         severity = if_abap_behv_message=>severity-error
-                                        text     = |Fax: { ls_customer-Phone } ist ungültig expected format:e.g. +494055448899| )
+                                        text     = |Fax: { ls_customer-Fax } ist ungültig expected format:e.g. +494055448899| )
                         %element-Fax = if_abap_behv=>mk-on
                       ) TO reported-customers.
       ENDIF.

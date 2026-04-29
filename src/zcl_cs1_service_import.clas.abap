@@ -17,7 +17,7 @@ CLASS zcl_cs1_service_import IMPLEMENTATION.
 
     DATA lt_service TYPE  zcs1_service.
 
-*    lt_service = VALUE #(
+*"    lt_service = VALUE #(
 *    ( id = 'CLIENT'              id_value =  '^\d{3}$'                                                      active = 'X' )
 *    ( id = 'CUSTOMERID'          id_value =  '^[A-Za-z0-9]{6}$'                                             active = 'X' )
 *    ( id = 'SALUTATION'          id_value =  '^[A-Za-z0-9@#!]{15}$'                                         active = 'X' )
@@ -43,7 +43,7 @@ CLASS zcl_cs1_service_import IMPLEMENTATION.
 *    ( id = 'WEBLOGIN'            id_value =  '^[A-Za-z0-9@#!]{60}$'                                         active = 'X' )
 *    ( id = 'WEBPW'               id_value =  '^[A-Za-z0-9@#!]{60}$'                                         active = 'X' )
 *    ( id = 'MEMO'                id_value =  '^[A-Za-z0-9@#!]{60}$'                                         active = 'X' ) ).
-
+"
   ENDMETHOD.
 
 ENDCLASS.

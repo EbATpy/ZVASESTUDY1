@@ -4,7 +4,7 @@
 @EndUserText.label: '###GENERATED Core Data Service Entity'
 define root view entity ZR_CS1_CUSTOMERS
   as select from zcs1_customers as CUSTOMERS
-    association [0..*] to zcs1_custorders as _Orders on $projection.Customerid = _Orders.customerid  
+  
 {
   key customerid as Customerid,
   salutation as Salutation,
@@ -13,7 +13,28 @@ define root view entity ZR_CS1_CUSTOMERS
   company as Company,
   street as Street,
   city as City,
+  
+  @Consumption: {
+    valueHelpDefinition: [ {
+      entity.name: 'I_Country',
+      entity.element: 'Country',       
+      useForValidation: true
+    } ]
+  }
   country as Country,
+  
+  @Consumption.valueHelpDefinition: [{
+    entity: {
+        name: 'ZCS1_I_ZIPCITY', // Die Wertehilfe-Entität
+        element: 'Postcode'    // Das Hauptfeld in der Wertehilfe
+    },
+    // Hier können mehrere Elemente gemappt werden
+    additionalBinding: [
+//        { localElement: 'Postcode', element: 'Postcode', usage: #FILTER_AND_RESULT },
+        { localElement: 'City', element: 'City', usage: #RESULT }
+//        { localElement: 'Country', element: 'Country', usage: #RESULT } // falls wir Country auch füllen wollen
+    ]
+}]
   postcode as Postcode,
   acc_lock as AccLock,
   last_date as LastDate,
@@ -34,7 +55,7 @@ define root view entity ZR_CS1_CUSTOMERS
   currency as Currency,
   @Consumption.valueHelpDefinition: [ {
     entity.name: 'I_CurrencyStdVH', 
-    entity.element: 'Currency', 
+    entity.element: 'CurrencyTarget', 
     useForValidation: true
   } ]
   currency_target as CurrencyTarget,
@@ -42,8 +63,6 @@ define root view entity ZR_CS1_CUSTOMERS
   weblogin as Weblogin,
   webpw as Webpw,
   memo as Memo,
-  _Orders.orderid as OrderID,
-  _Orders,
   
   @Semantics.user.createdBy: true
   created_by as CreatedBy,

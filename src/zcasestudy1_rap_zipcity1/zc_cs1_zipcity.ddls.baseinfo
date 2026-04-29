@@ -3,10 +3,12 @@
 {
 "FROM":
 [
-"ZCS1_CUSTOMERS"
+"ZR_CS1_ZIPCITY"
 ],
 "ASSOCIATED":
-[],
+[
+"ZR_CS1_ZIPCITY"
+],
 "BASE":
 [],
 "ANNO_REF":

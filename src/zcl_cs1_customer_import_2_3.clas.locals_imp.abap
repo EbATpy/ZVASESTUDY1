@@ -1,7 +1,6 @@
 CLASS lcl_customer_import DEFINITION.
 
   PUBLIC SECTION.
-
     TYPES: BEGIN OF ty_import,
              company  TYPE string,
              street   TYPE string,
@@ -34,10 +33,10 @@ CLASS lcl_customer_import DEFINITION.
              email        TYPE string,
              memo         TYPE string,
              raw_table    TYPE tt_raw,
-             company_Err  TYPE abap_boolean,
-             Email_Err    TYPE abap_boolean,
-             Tele_Err     TYPE abap_boolean,
-             TelFax_Err   TYPE abap_boolean,
+             company_err  TYPE abap_boolean,
+             email_err    TYPE abap_boolean,
+             phone_err    TYPE abap_boolean,
+             telefax_err  TYPE abap_boolean,
              customers_id TYPE string,
            END OF ty_output,
            tt_output TYPE STANDARD TABLE OF ty_output WITH EMPTY KEY.
@@ -100,10 +99,10 @@ CLASS lcl_customer_import DEFINITION.
 
     DATA lt_customers TYPE tt_output.
     DATA  get_error_note  TYPE String.
-     DATA column_name TYPE string.
+    DATA column_name TYPE string.
 
- METHODS Email_Tele_Telfax_Error
- RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
+    METHODS Email_Tele_Telfax_Error
+      RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
 
   PRIVATE SECTION.
     CLASS-METHODS split_csv_line
@@ -317,7 +316,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_tel_valid.
-    "   +49 40 1234567
+    "   +49 40 12345
     "    │   │  └─ Teilnehmernummer
     "    │   └─ Ortsnetzkennzahl Hamburg = 40
     "    └─ Ländervorwahl Deutschland = 49
@@ -339,16 +338,16 @@ CLASS lcl_customer_import IMPLEMENTATION.
     SELECT * FROM zcs1_service INTO TABLE @DATA(lt_service).
 
     "" Country
-    lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id
+    lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id_value
                                 DEFAULT 'D' ).
     "" Currency
-    lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id
+    lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id_value
                                 DEFAULT 'EUR' ).
     "" Currency_target1
-    lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id
+    lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id_value
                                     DEFAULT 'USD' ).
 
-    lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id
+    lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id_value
                                DEFAULT cl_abap_context_info=>get_system_date( ) ).
 
     SELECT * FROM zcs1_customers INTO TABLE @gt_customers.
@@ -389,9 +388,9 @@ CLASS lcl_customer_import IMPLEMENTATION.
                   column_name = 'COMPANY'
                   filename    = lc_method_name.
             ENDIF.
-          ELSE.
-            gs_customers-customerid = <lv_existing_id>-customerid.
-            MODIFY zcs1_customers FROM @gs_customers.
+*          ELSE.
+*            gs_customers-customerid = <lv_existing_id>-customerid.
+*            MODIFY zcs1_customers FROM @gs_customers.
 
           ENDIF.
 
@@ -541,107 +540,89 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
   METHOD Email_err_tab.
 
-
-    DATA lt_customers TYPE tt_output.
-   lt_customers = VALUE #( FOR line IN me->tt_customers
-   WHERE ( customers_id IS NOT INITIAL )   ( line ) ).
-
-
-    LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
-      " Erste Ebene: ty_output
-      DATA(lv_company) = <ls_customer>-company.
-      " Zweite Ebene: raw_table auslesen
+    LOOP AT me->tt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
       LOOP AT <ls_customer>-raw_table ASSIGNING FIELD-SYMBOL(<ls_raw>).
         DATA(lv_rawdata)   = <ls_raw>-rawdata.
         DATA(lv_email_err) = <ls_raw>-email_err.
         DATA(lv_phone_err) = <ls_raw>-phone_err.
         DATA(lv_fax_err)   = <ls_raw>-telefax_err.
 
-        TRY.
-
-            IF lv_email_err = abap_true.
-             <ls_customer>-email_err = abap_true.
-             RAISE EXCEPTION TYPE zcx_cs1_customer_failed
+        IF lv_phone_err = abap_true.
+            <ls_customer>-phone_err = abap_true.
+              TRY.
+              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>regularexpression_email
                   column_name = 'Email'
                   filename    = column_name.
+            CATCH
+            zcx_cs1_customer_failed INTO DATA(lx_exception).
+              DATA(lv_error_note) = lx_exception->get_text( ).
+          ENDTRY.
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( email_err = abap_true )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city
+                  note_err = lv_error_note  ) ).
+
+        ENDIF.
 
 
 
-
-
-            ELSEIF  lv_phone_err  = abap_true.
-             <ls_customer>-tele_err = abap_true.
+        IF lv_fax_err = abap_true.
+            <ls_customer>-telefax_err = abap_true.
+              TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
-                  textid      = zcx_cs1_customer_failed=>regularexpression_email
-                  column_name = 'Tele'
-                  filename    = column_name.
-
-
-
-
-
-            ELSEIF  lv_fax_err  = abap_true.
-            <ls_customer>-telfax_err = abap_true.
-              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-                EXPORTING
-                  textid      = zcx_cs1_customer_failed=>RegularExpression_TelFax
+                  textid      = zcx_cs1_customer_failed=>regularexpression_telfax
                   column_name = 'Telefax'
                   filename    = column_name.
+            CATCH
+            zcx_cs1_customer_failed INTO lx_exception.
+              lv_error_note = lx_exception->get_text( ).
+          ENDTRY.
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( telefax_err = abap_true )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city
+                  note_err = lv_error_note  ) ).
+
+        ENDIF.
 
 
+        IF lv_email_err = abap_true.
+            <ls_customer>-email_err = abap_true.
+          TRY.
+              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
+                EXPORTING
+                  textid      = zcx_cs1_customer_failed=>regularexpression_tele
+                  column_name = 'telel'
+                  filename    = column_name.
+            CATCH
+            zcx_cs1_customer_failed INTO lx_exception.
+              lv_error_note = lx_exception->get_text( ).
+          ENDTRY.
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( email_err = abap_true )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city
+                  note_err = lv_error_note  ) ).
+        ENDIF.
 
-            ENDIF.
-
-
-          CATCH
-             zcx_cs1_customer_failed INTO DATA(lx_exception).
-            DATA(lv_error_note) = lx_exception->get_text( ).
-
-        ENDTRY.
-
-
-
-        me->tt_badi_error = VALUE #( BASE tt_badi_error
-                 FOR ls IN me->tt_customers
-                 WHERE ( email_err = abap_true )
-              ( customers_id = ls-customers_id
-                company  = ls-company
-                street   = ls-street
-                postcode = ls-postcode
-                city     = ls-city
-                note_err = lv_error_note
-
-                 ) ).
-
-
-
-
-        me->tt_badi_error = VALUE #( BASE tt_badi_error
-               FOR ls IN me->tt_customers
-              WHERE ( Tele_err = abap_true )
-                   (  customers_id = ls-customers_id
-                      company  = ls-company
-                      street   = ls-street
-                      postcode = ls-postcode
-                      city     = ls-city
-                      note_err = lv_error_note ) ).
-
-
-        me->tt_badi_error = VALUE #( BASE tt_badi_error
-              FOR ls IN me->tt_customers
-             WHERE ( Telfax_err = abap_true )
-                      ( customers_id = ls-customers_id
-                        company  = ls-company
-                        street   = ls-street
-                        postcode = ls-postcode
-                        city     = ls-city
-                        note_err = lv_error_note ) ).
-
-        ENDLOOP.
-        ENDLOOP.
+      ENDLOOP.
+    ENDLOOP.
 
   ENDMETHOD.
 

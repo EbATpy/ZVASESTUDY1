@@ -35,7 +35,7 @@ CLASS zcl_cs1_insert_other_tables IMPLEMENTATION.
     IF sy-subrc = 0.
       lv_counter = lv_counter + 1.
     ENDIF.
-*    RETURN.
+    RETURN.
    data lt_customers type TABLE of zcs1_customers.
 
    lt_customers = VALUE #(

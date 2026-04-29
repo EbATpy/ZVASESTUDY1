@@ -60,7 +60,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
 
         obj->parse_customers( ).
 
-*        out->write( obj->return_table( ) ).
+        io_out->write( obj->return_table( ) ).
 
         obj->import_customers( ).
         io_out->write( '-------- return_table ----------' ).
@@ -94,7 +94,6 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
     ENDTRY.
 *    out->write( lt_customs ).
   ENDMETHOD.
-
 
   METHOD zif_cs1_validation~is_email_valid.
     rv_valid = lcl_customer_import=>is_email_valid( iv_email = CONV string( iv_email ) ).

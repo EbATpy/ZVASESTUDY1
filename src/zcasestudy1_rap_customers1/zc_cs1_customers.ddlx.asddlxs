@@ -263,6 +263,7 @@ annotate view ZC_CS1_CUSTOMERS with
   @UI.selectionField: [ {
     position: 230 
   } ]
+  @UI.hidden: true
   CreatedBy;
   
   @UI.identification: [ {
@@ -274,6 +275,7 @@ annotate view ZC_CS1_CUSTOMERS with
   @UI.selectionField: [ {
     position: 240 
   } ]
+  @UI.hidden: true
   CreatedAt;
   
   @UI.identification: [ {
@@ -285,6 +287,7 @@ annotate view ZC_CS1_CUSTOMERS with
   @UI.selectionField: [ {
     position: 250 
   } ]
+  @UI.hidden: true
   LocalLastChangedBy;
   
   @UI.identification: [ {
@@ -296,6 +299,7 @@ annotate view ZC_CS1_CUSTOMERS with
   @UI.selectionField: [ {
     position: 260 
   } ]
+  @UI.hidden: true
   LocalLastChangedAt;
   
   @UI.identification: [ {
@@ -307,6 +311,7 @@ annotate view ZC_CS1_CUSTOMERS with
   @UI.selectionField: [ {
     position: 270 
   } ]
+  @UI.hidden: true
   LastChangedAt;
   
   @EndUserText.label: '_BaseEntity'
