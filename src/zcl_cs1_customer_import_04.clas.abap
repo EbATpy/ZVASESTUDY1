@@ -35,17 +35,17 @@ CLASS zcl_cs1_customer_import_04 IMPLEMENTATION.
 
   METHOD main_programm.
 *    "" Datenbanktabelle deleten
-*    DELETE FROM zcs1_customers.
-*
-*    IF sy-subrc = 0.
-*      DATA(lv_counter) = 1.
-*    ENDIF.
-*
-*    DELETE FROM zcs1_import_err.
-*
-*    IF sy-subrc = 0.
-*      lv_counter = lv_counter + 1.
-*    ENDIF.
+    DELETE FROM zcs1_customers.
+
+    IF sy-subrc = 0.
+      DATA(lv_counter) = 1.
+    ENDIF.
+
+    DELETE FROM zcs1_import_err.
+
+    IF sy-subrc = 0.
+      lv_counter = lv_counter + 1.
+    ENDIF.
 
     TRY.
         ""Der Aufruf der Methode dient zum erstmaligen Anlegen des Nummern Intervals

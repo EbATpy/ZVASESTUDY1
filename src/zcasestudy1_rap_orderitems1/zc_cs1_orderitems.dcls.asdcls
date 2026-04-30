@@ -1,0 +1,6 @@
+@EndUserText.label: 'ZC_CS1_ORDERITEMS'
+@MappingRole: true
+define role ZC_CS1_ORDERITEMS {
+  grant select on ZC_CS1_ORDERITEMS
+  where INHERITING CONDITIONS FROM ENTITY ZR_CS1_ORDERITEMS REPLACING { ROOT WITH _BaseEntity };
+}

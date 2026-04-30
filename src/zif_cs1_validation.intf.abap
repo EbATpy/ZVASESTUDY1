@@ -14,5 +14,8 @@ INTERFACE zif_cs1_validation
     IMPORTING iv_fax          TYPE zcs1_customers-fax
     RETURNING VALUE(rv_valid) TYPE abap_bool.
 
+  METHODS latenumbering
+    RETURNING VALUE(rv_id) TYPE zcustomerid1.
+
   INTERFACES if_oo_adt_classrun .
 ENDINTERFACE.

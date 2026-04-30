@@ -56,6 +56,10 @@ CLASS lcl_customer_import DEFINITION.
       IMPORTING iv_tel          TYPE string
       RETURNING VALUE(rv_valid) TYPE abap_bool.
 
+    CLASS-METHODS is_fax_valid
+      IMPORTING iv_tel          TYPE string
+      RETURNING VALUE(rv_valid) TYPE abap_bool.
+
 *###################### Anfang Gruppe 04 #########################################################################
     CLASS-METHODS get_next_customer_id
       RETURNING
@@ -93,6 +97,9 @@ CLASS lcl_customer_import DEFINITION.
       RETURNING VALUE(itab_new) TYPE tt_errors.
 
     METHODS call_badi.
+
+    METHODS write_Import_Err
+      IMPORTING iv_description TYPE string.
 *###################### Ende Gruppe 04 #########################################################################
 
 
@@ -204,7 +211,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
         data1_data2 = replace( val = data1_data2 pcre = `^0(\d+)` with = `+49$1` occ = 1 ).
 
         DATA(valid_phone)   = me->is_tel_valid( data1_data2 ).
-        DATA(valid_telefax) = me->is_tel_valid( data1_data2 ).
+        DATA(valid_telefax) = me->is_fax_valid( data1_data2 ).
         DATA(valid_email)   = me->is_email_valid( data1 ).
 
         " -------------Phone is ''
@@ -317,12 +324,25 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_tel_valid.
-    "   +49 40 12345
-    "    │   │  └─ Teilnehmernummer
-    "    │   └─ Ortsnetzkennzahl Hamburg = 40
-    "    └─ Ländervorwahl Deutschland = 49
-    DATA(lv_regex) = '^\+49[1-9]\d{5,13}$'.
-    rv_valid = xsdbool( matches( val = iv_tel pcre = lv_regex ) ).
+    DATA(lv_clean) = replace( val  = iv_tel
+                              pcre = `(?!^\+)[^\d]`
+                              with  = ``
+                              occ   = 0 ).
+
+    DATA(lv_regex_1) = `^\+?\d{7,15}$`.
+    DATA(lv_valid_1) = xsdbool( matches( val = lv_clean pcre = lv_regex_1 ) ).
+    DATA(lv_regex_2) = `^\+[1-9]\d{7,14}$`.
+    DATA(lv_valid_2) = xsdbool( matches( val = lv_clean pcre = lv_regex_2 ) ).
+    IF lv_valid_1 = abap_true OR lv_valid_2 = abap_true.
+      rv_valid = abap_true.
+    ELSE.
+      rv_valid = abap_false.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD is_fax_valid.
+    rv_valid = is_tel_valid( iv_tel ).
   ENDMETHOD.
 
 *###################### Anfang Gruppe 04 #########################################################################
@@ -410,6 +430,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
                                           AND postcode = <fs_import>-postcode
                                           AND city = <fs_import>-city.
           TRY.
+
+              """ Methode zum wegschreiben für alle
               INSERT zcs1_import_err FROM @( VALUE #(
                                      id  = lcl_customer_import=>get_next_id( )
                              description = lv_full_text ) ).
@@ -437,9 +459,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
             number      = lv_returned_number
         ).
 
-        " Wir nutzen die zurückgegebene Nummer
-        " ALPHA = OUT entfernt führende Nullen (z.B. '000001' -> '1')
-        rv_customerid = |{ lv_returned_number ALPHA = OUT }|.
+        " ALPHA = IN fügt führende Nullen (z.B. '1' -> '000001')
+        rv_customerid = |{ lv_returned_number ALPHA = IN }|.
 
       CATCH cx_number_ranges INTO DATA(lx_error).
 
@@ -460,9 +481,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
             number      = lv_returned_number
         ).
 
-        " Wir nutzen die zurückgegebene Nummer
-        " ALPHA = OUT entfernt führende Nullen (z.B. '000001' -> '1')
-        rv_id = |{ lv_returned_number ALPHA = OUT }|.
+        " ALPHA = IN fügt führende Nullen (z.B. '1' -> '000001')
+        rv_id = |{ lv_returned_number ALPHA = IN }|.
 
       CATCH cx_number_ranges INTO DATA(lx_error).
 
@@ -537,11 +557,23 @@ CLASS lcl_customer_import IMPLEMENTATION.
     ENDTRY.
 
   ENDMETHOD.
+
+  METHOD write_import_err.
+    TRY.
+        INSERT zcs1_import_err FROM @( VALUE #(
+                         " Hier hast du die ID (entweder neu oder existierend)
+                                           id  = lcl_customer_import=>get_next_id( )
+                                   description = iv_description ) ).
+      CATCH cx_number_ranges INTO DATA(lx_nr_err2).
+        DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
+    ENDTRY.
+  ENDMETHOD.
+
 *###################### Ende Gruppe 04 #########################################################################
 
   METHOD Email_err_tab.
 
- LOOP AT me->tt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
+    LOOP AT me->tt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
       LOOP AT <ls_customer>-raw_table ASSIGNING FIELD-SYMBOL(<ls_raw>).
         DATA(lv_rawdata)   = <ls_raw>-rawdata.
         DATA(lv_email_err) = <ls_raw>-email_err.
@@ -549,8 +581,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
         DATA(lv_fax_err)   = <ls_raw>-telefax_err.
 
         IF lv_phone_err = abap_true.
-            <ls_customer>-tele_err = abap_true.
-              TRY.
+          <ls_customer>-tele_err = abap_true.
+          TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>regularexpression_tele
@@ -574,15 +606,15 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
 
         IF lv_fax_err = abap_true.
-            <ls_customer>-telfax_err = abap_true.
-           TRY.
+          <ls_customer>-telfax_err = abap_true.
+          TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>regularexpression_telfax
                   column_name = 'Telefax'
                   filename    = column_name.
-          CATCH
-            zcx_cs1_customer_failed INTO lx_exception.
+            CATCH
+              zcx_cs1_customer_failed INTO lx_exception.
               lv_error_note = lx_exception->get_text( ).
           ENDTRY.
 
@@ -600,7 +632,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
 
         IF lv_email_err = abap_true.
-            <ls_customer>-email_err = abap_true.
+          <ls_customer>-email_err = abap_true.
           TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
@@ -623,7 +655,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
                   note_err = lv_error_note  ) ).
         ENDIF.
 
-    ENDLOOP.
+      ENDLOOP.
 
     ENDLOOP.
 
@@ -633,5 +665,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
   METHOD  Email_Tele_Telfax_Error.
     ETT_Erroer = me->tt_badi_error.
   ENDMETHOD.
+
+
 
 ENDCLASS.

@@ -11,6 +11,24 @@
     <T100>
      <SPRSL>D</SPRSL>
      <ARBGB>Z01_MESSAGES</ARBGB>
+     <MSGNR>001</MSGNR>
+     <TEXT>Zielwährung fehlt</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>D</SPRSL>
+     <ARBGB>Z01_MESSAGES</ARBGB>
+     <MSGNR>002</MSGNR>
+     <TEXT>Umrechnungsfehler bei &amp;1, &amp;2, &amp;3</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>D</SPRSL>
+     <ARBGB>Z01_MESSAGES</ARBGB>
+     <MSGNR>003</MSGNR>
+     <TEXT>CustomerID: &amp;1 with orderid: &amp;2 SalesVolume not updated</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>D</SPRSL>
+     <ARBGB>Z01_MESSAGES</ARBGB>
      <MSGNR>010</MSGNR>
      <TEXT>RegularExpression Email -&gt; &amp;1 Error.</TEXT>
     </T100>

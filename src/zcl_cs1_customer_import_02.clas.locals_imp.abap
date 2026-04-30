@@ -2,7 +2,6 @@ CLASS lcl_customer_import DEFINITION.
 
   PUBLIC SECTION.
 
-
     TYPES: BEGIN OF ty_import,
              company  TYPE string,
              street   TYPE string,
@@ -43,9 +42,6 @@ CLASS lcl_customer_import DEFINITION.
            END OF ty_output,
            tt_output TYPE STANDARD TABLE OF ty_output WITH EMPTY KEY.
 
-    DATA tt_customers TYPE tt_output.
-
-
     METHODS parse_csv.
     METHODS parse_customers.
 
@@ -60,18 +56,20 @@ CLASS lcl_customer_import DEFINITION.
       IMPORTING iv_tel          TYPE string
       RETURNING VALUE(rv_valid) TYPE abap_bool.
 
-    " Methode zum Ziehen der nächsten Customer-ID
+*###################### Anfang Gruppe 04 #########################################################################
     CLASS-METHODS get_next_customer_id
       RETURNING
         VALUE(rv_customerid) TYPE zcustomerid1
       RAISING
         cx_number_ranges.
-    "" Struktur für die Tabelle customers als Sortierte Tabelle
-    TYPES tc_customer TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city.
 
-    "" Metghode zum import der Tabelle mit unique Werten bestehend aus den keys
+    CLASS-METHODS get_next_id
+      RETURNING
+        VALUE(rv_id) TYPE zid1
+      RAISING
+        cx_number_ranges.
+
     METHODS import_customers
-      ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!
       RAISING zcx_cs1_customer_failed.
 
     TYPES: BEGIN OF ty_errors,
@@ -83,7 +81,6 @@ CLASS lcl_customer_import DEFINITION.
              note_err     TYPE string,
            END OF ty_errors,
            tt_errors TYPE STANDARD TABLE OF ty_errors WITH EMPTY KEY.
-    DATA tt_badi_error TYPE tt_errors.
 
     METHODS Company_Err_Tab.
 
@@ -92,31 +89,43 @@ CLASS lcl_customer_import DEFINITION.
 
     METHODS New_Customer_Tab.
 
-    DATA tt_badi_new TYPE tt_errors.
-
     METHODS return_New_Customer_Tab_table
       RETURNING VALUE(itab_new) TYPE tt_errors.
 
     METHODS call_badi.
 
+    METHODS write_Import_Err
+      IMPORTING iv_description TYPE string.
+*###################### Ende Gruppe 04 #########################################################################
+
+
     METHODS Email_err_tab.
 
     DATA lt_customers TYPE tt_output.
     DATA  get_error_note  TYPE String.
-     DATA column_name TYPE string.
+    DATA column_name TYPE string.
 
- METHODS Email_Tele_Telfax_Error
- RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
+    METHODS Email_Tele_Telfax_Error
+      RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
 
+    METHODS Get_raw_Data.
+
+    DATA lt_raw_Data TYPE tt_output.
+    DATA raw_Data_note  TYPE String.
+    DATA raw_Data.
+
+    METHODS raw_Data_on_import
+      RETURNING VALUE(raw_Data_Table) TYPE tt_errors.
 
   PRIVATE SECTION.
     CLASS-METHODS split_csv_line
       IMPORTING iv_line        TYPE string
       RETURNING VALUE(rt_cols) TYPE string_table.
-
-
-
-
+*###################### Anfang Gruppe 04 #########################################################################
+    DATA tt_customers TYPE tt_output.
+    DATA tt_badi_error TYPE tt_errors.
+    DATA tt_badi_new TYPE tt_errors.
+*###################### Ende Gruppe 04 #########################################################################
 
 ENDCLASS.
 
@@ -129,13 +138,28 @@ CLASS lcl_customer_import IMPLEMENTATION.
     LOOP AT lt_source INTO DATA(ls_source) WHERE import IS NOT INITIAL.
       DATA(ls_test)    = VALUE ty_output( ).
       DATA(lt_columns) = split_csv_line( CONV string( ls_source-import ) ).
-      ls_test-company    = VALUE #( lt_columns[ 1 ] OPTIONAL ).
-      ls_test-street     = VALUE #( lt_columns[ 2 ] OPTIONAL ).
-      ls_test-postcode   = VALUE #( lt_columns[ 3 ] OPTIONAL ).
-      ls_test-city       = VALUE #( lt_columns[ 4 ] OPTIONAL ).
-      ls_test-type       = VALUE #( lt_columns[ 5 ] OPTIONAL ).
-      ls_test-data1      = VALUE #( lt_columns[ 6 ] OPTIONAL ).
-      ls_test-data2      = VALUE #( lt_columns[ 7 ] OPTIONAL ).
+      TRY.
+          IF lines( lt_columns ) <> 7.
+            RAISE EXCEPTION TYPE zcx_cs1_customer_failed
+              EXPORTING
+                textid      = zcx_cs1_customer_failed=>regularexpression_pasing
+                column_name = 'Pasing'
+                filename    = column_name.
+          ENDIF.
+          ls_test    = VALUE ty_output( ).
+          lt_columns = split_csv_line( CONV string( ls_source-import ) ).
+          ls_test-company    = VALUE #( lt_columns[ 1 ] OPTIONAL ).
+          ls_test-street     = VALUE #( lt_columns[ 2 ] OPTIONAL ).
+          ls_test-postcode   = VALUE #( lt_columns[ 3 ] OPTIONAL ).
+          ls_test-city       = VALUE #( lt_columns[ 4 ] OPTIONAL ).
+          ls_test-type       = VALUE #( lt_columns[ 5 ] OPTIONAL ).
+          ls_test-data1      = VALUE #( lt_columns[ 6 ] OPTIONAL ).
+          ls_test-data2      = VALUE #( lt_columns[ 7 ] OPTIONAL ).
+        CATCH
+        zcx_cs1_customer_failed INTO DATA(lx_exception).
+          DATA(lv_error_note) = lx_exception->get_text( ).
+          write_import_err( lv_error_note ).
+      ENDTRY.
       "------------------------------------
       DATA(ls_raw)       = VALUE ty_import_raw( ).
       ls_raw-rawdata     = ls_source-import.
@@ -320,7 +344,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_tel_valid.
-    "   +49 40 1234567
+    "   +49 40 12345
     "    │   │  └─ Teilnehmernummer
     "    │   └─ Ortsnetzkennzahl Hamburg = 40
     "    └─ Ländervorwahl Deutschland = 49
@@ -328,6 +352,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
     rv_valid = xsdbool( matches( val = iv_tel pcre = lv_regex ) ).
   ENDMETHOD.
 
+*###################### Anfang Gruppe 04 #########################################################################
   METHOD import_customers.
     DATA gt_customers TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city.
     DATA gs_customers LIKE LINE OF gt_customers.
@@ -336,20 +361,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
     DATA lv_currency_target1 TYPE zcurrency_target1.
     DATA lv_last_date TYPE zlast_date1.
 
-
-    DATA lt_failed_strings TYPE string_table.
-    DATA lv_final_count TYPE i.
-
-    ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!++++++++++
     CONSTANTS lc_method_name TYPE string VALUE '=>IMPORT_CUSTOMERS'.
 
-    ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!++++++++++
-    " Höchste vorhandene ID aus der Fehlertabelle holen
-    " Später durch get_next_id Methode ersetzen!
-    SELECT MAX( id ) FROM zcs1_import_err INTO @DATA(lv_max_err_id).
-    DATA(lv_next_err_id_num) = CONV i( lv_max_err_id ) + 1.
-
-    "" Hier werden die Standarddaten aus der Tabelle eingelesen
     SELECT * FROM zcs1_service INTO TABLE @DATA(lt_service).
 
     "" Country
@@ -361,67 +374,51 @@ CLASS lcl_customer_import IMPLEMENTATION.
     "" Currency_target1
     lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id_value
                                     DEFAULT 'USD' ).
-    "" AktDatum für Last_date Statt sy-datum vielleicht mit cl_abap_context_info=>get_system_date( ) die Methode ging aber nicht
+
     lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id_value
                                DEFAULT cl_abap_context_info=>get_system_date( ) ).
 
+    SELECT * FROM zcs1_customers INTO TABLE @gt_customers.
 
-    LOOP AT me->tt_customers  INTO DATA(ls_import).
+    LOOP AT me->tt_customers  ASSIGNING FIELD-SYMBOL(<fs_import>).
       TRY.
-          MOVE-CORRESPONDING ls_import TO gs_customers.
-
-          "" Schon mal die Standartwerte hier festsetzen später noch mit Service Tabelle
+          MOVE-CORRESPONDING <fs_import> TO gs_customers.
           gs_customers-country = lv_country.
           gs_customers-currency = lv_currency.
           gs_customers-currency_target = lv_currency_target1.
           gs_customers-last_date = lv_last_date.
 
-          " Prüfen, ob der Kunde unter dieser Adresse schon existiert
-          SELECT SINGLE customerid
-            FROM zcs1_customers
-            WHERE company  = @gs_customers-company
-              AND last_name   = @gs_customers-last_name
-              AND first_name   = @gs_customers-first_name
-              AND street   = @gs_customers-street
-              AND postcode = @gs_customers-postcode
-              AND city     = @gs_customers-city
-            INTO @DATA(lv_existing_id).
+          ASSIGN gt_customers[ company  = gs_customers-company
+                     street   = gs_customers-street
+                     postcode = gs_customers-postcode
+                     city     = gs_customers-city ] TO FIELD-SYMBOL(<lv_existing_id>).
 
           IF sy-subrc <> 0.
-            "" FALL 1: Customer existiert nicht, anfügen
             gs_customers-customerid = lcl_customer_import=>get_next_customer_id( ).
 
             MODIFY me->tt_customers FROM VALUE #( customers_id = gs_customers-customerid )
-                TRANSPORTING customers_id WHERE company = ls_import-company
-                                            AND  street = ls_import-street
-                                            AND postcode = ls_import-postcode
-                                            AND city = ls_import-city.
+                TRANSPORTING customers_id WHERE company = <fs_import>-company
+                                            AND  street = <fs_import>-street
+                                            AND postcode = <fs_import>-postcode
+                                            AND city = <fs_import>-city.
 
-            INSERT zcs1_customers FROM @gs_customers.
+            INSERT gs_customers INTO TABLE gt_customers.
 
-            ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!++++++++++
-            " 1. Feldlängen-Prüfung via RTTI (Beispiel für Feld 'COMPANY')
-            " Wir holen uns die Beschreibung der Struktur von ls_cust, die auf zcs1_customers geht!
             DATA(lo_struct) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_data( gs_customers ) ).
 
-            " Wir prüfen die Länge der 'COMPANY' (Länge in ABAP ist in Bytes/Zeichen)
-            " Es muss COMPANY übergeben werden nicht company wie in der Tabelle!
             DATA(lv_max_len) = lo_struct->get_component_type( 'COMPANY' )->length / cl_abap_char_utilities=>charsize.
-*          DATA(lv_max_cust) = strlen( ls_import-company ).
 
-            IF strlen( ls_import-company ) > lv_max_len.
-              " hier die Raise exeption einarbeiten und aufrufen
+            IF strlen( <fs_import>-company ) > lv_max_len.
+
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
                   textid      = zcx_cs1_customer_failed=>company_to_long
                   column_name = 'COMPANY'
                   filename    = lc_method_name.
-*                    line_number  = sy-tabix.
             ENDIF.
-          ELSE.
-            " FALL 2: Vorhanden -> Bestehende ID zuweisen und MODIFY
-            gs_customers-customerid = lv_existing_id.
-            MODIFY zcs1_customers FROM @gs_customers.
+*          ELSE.
+*            gs_customers-customerid = <lv_existing_id>-customerid.
+*            MODIFY zcs1_customers FROM @gs_customers.
 
           ENDIF.
 
@@ -430,40 +427,36 @@ CLASS lcl_customer_import IMPLEMENTATION.
         CATCH cx_number_ranges INTO DATA(lx_nr_err).
           DATA(ls_err) = |Nummernkreisfehler: { lx_nr_err->get_text( ) }|.
 
-          " Ausnahme Klasse zcx_cs1_customer_failed => zcl_cs1_customer_failed
         CATCH zcx_cs1_customer_failed INTO DATA(lx_cust_err).
-          " Wenn zur Ausnahme kommt werden die Daten hier an dieser Stelle weggeschrieben
-          " Text für die Description auslesen
 *            DATA(lv_full_text) = |{ gs_customers-customerid }; { gs_customers-company }; { gs_customers-street }; { gs_customers-postcode }; { gs_customers-city }; | && |-> { lx_cust_err->get_text( ) }|.
           DATA(lv_full_text) = |Customer-ID: { gs_customers-customerid }; { gs_customers-company }; | && |-> { lx_cust_err->get_text( ) }|.
 
-          "Fehlertext für das BAdI wegschreiben in die globale Tabelle markieren
           MODIFY me->tt_customers FROM VALUE #( company_Err = abap_true )
-              TRANSPORTING company_Err WHERE company = ls_import-company
-                                          AND  street = ls_import-street
-                                          AND postcode = ls_import-postcode
-                                          AND city = ls_import-city.
+              TRANSPORTING company_Err WHERE company = <fs_import>-company
+                                          AND  street = <fs_import>-street
+                                          AND postcode = <fs_import>-postcode
+                                          AND city = <fs_import>-city.
+          TRY.
 
-          INSERT zcs1_import_err FROM @( VALUE #(
-                 " Hier hast du die ID (entweder neu oder existierend)
-                                   id  = lv_next_err_id_num
-                           description = lv_full_text ) ).
-
-          " ID setzen, muss raus wenn get_next_id Methode implementiert ist!
-          lv_next_err_id_num = lv_next_err_id_num + 1.
-
+              """ Methode zum wegschreiben für alle
+              INSERT zcs1_import_err FROM @( VALUE #(
+                                     id  = lcl_customer_import=>get_next_id( )
+                             description = lv_full_text ) ).
+            CATCH cx_number_ranges INTO DATA(lx_nr_err2).
+              DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
+          ENDTRY.
       ENDTRY.
-
-
     ENDLOOP.
 
-  ENDMETHOD.
+    IF gt_customers IS NOT INITIAL.
+      MODIFY zcs1_customers FROM TABLE @gt_customers.
+    ENDIF.
 
+  ENDMETHOD.
 
   METHOD get_next_customer_id.
     DATA: lv_number          TYPE cl_numberrange_runtime=>nr_number,
           lv_returned_number TYPE cl_numberrange_runtime=>nr_number.
-
     TRY.
         cl_numberrange_runtime=>number_get(
           EXPORTING
@@ -473,13 +466,33 @@ CLASS lcl_customer_import IMPLEMENTATION.
             number      = lv_returned_number
         ).
 
-        " Wir nutzen die zurückgegebene Nummer
-        " ALPHA = OUT entfernt führende Nullen (z.B. '000001' -> '1')
-        rv_customerid = |{ lv_returned_number ALPHA = OUT }|.
+        " ALPHA = IN fügt führende Nullen (z.B. '1' -> '000001')
+        rv_customerid = |{ lv_returned_number ALPHA = IN }|.
 
       CATCH cx_number_ranges INTO DATA(lx_error).
-        " Im Fehlerfall: Entweder leer lassen oder Fehler loggen
-        " rv_customerid bleibt dann initial.
+
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD get_next_id.
+    DATA: lv_number          TYPE cl_numberrange_runtime=>nr_number,
+          lv_returned_number TYPE cl_numberrange_runtime=>nr_number.
+
+    TRY.
+        cl_numberrange_runtime=>number_get(
+          EXPORTING
+            nr_range_nr = '01'
+            object      = 'ZCS_IDERR1'
+          IMPORTING
+            number      = lv_returned_number
+        ).
+
+        " ALPHA = IN fügt führende Nullen (z.B. '1' -> '000001')
+        rv_id = |{ lv_returned_number ALPHA = IN }|.
+
+      CATCH cx_number_ranges INTO DATA(lx_error).
+
     ENDTRY.
 
   ENDMETHOD.
@@ -496,8 +509,6 @@ CLASS lcl_customer_import IMPLEMENTATION.
                 city     = ls-city
                 note_err = 'Company Name > 60' )
                          ).
-
-
   ENDMETHOD.
 
   METHOD return_err_table.
@@ -522,9 +533,6 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
 
-
-
-
   METHOD call_badi.
     " Für das BAdi am ende der Methode
     DATA lo_badi TYPE REF TO ZCS1_BADIdef_IMPORT_CUSTOMERS. "hier Schritt1
@@ -546,7 +554,6 @@ CLASS lcl_customer_import IMPLEMENTATION.
     ENDTRY.
 
     TRY.
-        " WICHTIG: CALL BADI hat keine runden Klammern ( ) um die gesamte Exporting-Liste!
         CALL BADI lo_badi->after_import
           EXPORTING
             it_new   = tt_badi1
@@ -558,159 +565,152 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
   ENDMETHOD.
 
+  METHOD write_import_err.
+    TRY.
+        INSERT zcs1_import_err FROM @( VALUE #(
+                         " Hier hast du die ID (entweder neu oder existierend)
+                                           id  = lcl_customer_import=>get_next_id( )
+                                   description = iv_description ) ).
+      CATCH cx_number_ranges INTO DATA(lx_nr_err2).
+        DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
+    ENDTRY.
+  ENDMETHOD.
+
+*###################### Ende Gruppe 04 #########################################################################
+
   METHOD Email_err_tab.
 
-
-    DATA lt_customers TYPE tt_output.
-    lt_customers = me->tt_customers.
-
-
-
-    LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
-      " Erste Ebene: ty_output
-      DATA(lv_company) = <ls_customer>-company.
-      " Zweite Ebene: raw_table auslesen
+    LOOP AT me->tt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
       LOOP AT <ls_customer>-raw_table ASSIGNING FIELD-SYMBOL(<ls_raw>).
         DATA(lv_rawdata)   = <ls_raw>-rawdata.
         DATA(lv_email_err) = <ls_raw>-email_err.
         DATA(lv_phone_err) = <ls_raw>-phone_err.
         DATA(lv_fax_err)   = <ls_raw>-telefax_err.
 
-        TRY.
-
-            IF lv_email_err IS NOT INITIAL.
+        IF lv_phone_err = abap_true.
+          <ls_customer>-tele_err = abap_true.
+          TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
-                  textid      = zcx_cs1_customer_failed=>regularexpression_email
-                  column_name = 'Email'
-                  filename    = column_name.
-
-
-
-            ELSEIF  lv_phone_err IS NOT INITIAL.
-              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-                EXPORTING
-                  textid      = zcx_cs1_customer_failed=>regularexpression_email
+                  textid      = zcx_cs1_customer_failed=>regularexpression_tele
                   column_name = 'Tele'
                   filename    = column_name.
-
-
-
-            ELSEIF  lv_phone_err IS NOT INITIAL.
-              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-                EXPORTING
-                  textid      = zcx_cs1_customer_failed=>RegularExpression_TelFax
-                  column_name = 'Telefax'
-                  filename    = column_name.
-
-            ENDIF.
-
-
-         CATCH
+            CATCH
             zcx_cs1_customer_failed INTO DATA(lx_exception).
               DATA(lv_error_note) = lx_exception->get_text( ).
+          ENDTRY.
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( tele_err = abap_true )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city
+                  note_err = lv_error_note  ) ).
 
-         ENDTRY.
-
-              me->tt_badi_error = VALUE #( BASE tt_badi_error
-                       FOR ls1 IN me->tt_customers
-                       WHERE ( email_err = abap_true )
-                    ( note_err = lv_error_note )
-                     ).
-
-              me->tt_badi_error = VALUE #( BASE tt_badi_error
-                     FOR ls2 IN me->tt_customers
-                    WHERE ( Tele_err = abap_true )
-                            (  note_err = lv_error_note ) ).
-
-              me->tt_badi_error = VALUE #( BASE tt_badi_error
-                    FOR ls3 IN me->tt_customers
-                   WHERE ( Telfax_err = abap_true )
-                            ( note_err = lv_error_note ) ).
+        ENDIF.
 
 
+        IF lv_fax_err = abap_true.
+          <ls_customer>-telfax_err = abap_true.
+          TRY.
+              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
+                EXPORTING
+                  textid      = zcx_cs1_customer_failed=>regularexpression_telfax
+                  column_name = 'Telefax'
+                  filename    = column_name.
+            CATCH
+              zcx_cs1_customer_failed INTO lx_exception.
+              lv_error_note = lx_exception->get_text( ).
+          ENDTRY.
+
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( telfax_err = abap_true )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city
+                  note_err = lv_error_note  ) ).
+
+        ENDIF.
 
 
-          ENDLOOP.
-        ENDLOOP.
-*
+        IF lv_email_err = abap_true.
+          <ls_customer>-email_err = abap_true.
+          TRY.
+              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
+                EXPORTING
+                  textid      = zcx_cs1_customer_failed=>regularexpression_tele
+                  column_name = 'Email'
+                  filename    = column_name.
+            CATCH
+            zcx_cs1_customer_failed INTO lx_exception.
+              lv_error_note = lx_exception->get_text( ).
+          ENDTRY.
 
-*
-*      LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
-*        " Erste Ebene: ty_output
-*        DATA(lv_company) = <ls_customer>-company.
-*        " Zweite Ebene: raw_table auslesen
-*        LOOP AT <ls_customer>-raw_table ASSIGNING FIELD-SYMBOL(<ls_raw>).
-*          DATA(lv_rawdata)   = <ls_raw>-rawdata.
-*          DATA(lv_email_err) = <ls_raw>-email_err.
-*          DATA(lv_phone_err) = <ls_raw>-phone_err.
-*          DATA(lv_fax_err)   = <ls_raw>-telefax_err.
-*
-*
-*          IF lv_email_err IS NOT INITIAL.
-*
-*          TRY.
-*            RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-*              EXPORTING
-*                textid      = zcx_cs1_customer_failed=>regularexpression_email
-*                column_name = 'Email'
-*                filename    = lv_email_err.
-*          CATCH zcx_cs1_customer_failed INTO DATA(lx_exception).
-*           lv_error_note = lx_exception->get_error_note( ).
-*
-*            me->tt_badi_error = VALUE #( BASE tt_badi_error
-*              FOR ls IN me->tt_customers
-*              WHERE ( email_err = abap_true )
-*               note_err = get_error_note  ).
-*
-*
-*
-*
-*          ELSEIF  lv_phone_err IS NOT INITIAL.
-*          TRY.
-*            RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-*              EXPORTING
-*                textid      = zcx_cs1_customer_failed=>regularexpression_email
-*                column_name = 'Tele'
-*                filename    = lc_method_name.
-*          CATCH zcx_cs1_customer_failed INTO lx_exception.
-*           lv_error_note = lx_exception->get_error_note( ).
-*
-*            me->tt_badi_error = VALUE #( BASE tt_badi_error
-*              FOR ls2 IN me->tt_customers
-*             WHERE ( Tele_err = abap_true )
-*             note_err = lv_error_note  ).
-*
-*
-*
-*
-*          ELSEIF  lv_phone_err IS NOT INITIAL.
-*          TRY.
-*            RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-*              EXPORTING
-*                textid      = zcx_cs1_customer_failed=>RegularExpression_TelFax
-*                column_name = 'Telefax'
-*                filename    = lc_method_name.
-*
-*         CATCH zcx_cs1_customer_failed INTO lx_exception.
-*           lv_error_note = lx_exception->get_error_note( ).
-*
-*            me->tt_badi_error = VALUE #( BASE tt_badi_error
-*          FOR ls2 IN me->tt_customers
-*         WHERE ( Telefax_err = abap_true )
-*                  note_err = lv_error_note ) .
-*
-*          ENDIF.
-*
-*
-*        ENDLOOP.
-*      ENDLOOP.
-**
-*
-      ENDMETHOD.
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( email_err = abap_true )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city
+                  note_err = lv_error_note  ) ).
+        ENDIF.
+
+      ENDLOOP.
+
+    ENDLOOP.
+
+
+  ENDMETHOD.
 
   METHOD  Email_Tele_Telfax_Error.
-    ETT_Erroer = me->tt_badi_new.
+    ETT_Erroer = me->tt_badi_error.
   ENDMETHOD.
+
+
+
+  METHOD Get_raw_Data.
+
+
+
+
+
+    LOOP AT me->tt_customers INTO  DATA(ls_customer).
+
+      IF ls_customer-customers_id = abap_true.
+        LOOP AT ls_customer-raw_table INTO DATA(ls_raw).
+          DATA(lv_rawdata)   = ls_raw-rawdata.
+          me->tt_badi_error = VALUE #( BASE tt_badi_error
+                   FOR ls IN me->tt_customers
+                   WHERE ( customers_id = ls_raw-rawdata )
+                ( customers_id = ls-customers_id
+                  company  = ls-company
+                  street   = ls-street
+                  postcode = ls-postcode
+                  city     = ls-city  ) ).
+
+        ENDLOOP.
+
+      ENDIF.
+
+
+
+    ENDLOOP.
+
+
+  ENDMETHOD.
+
+
+  METHOD  raw_Data_on_import.
+    raw_Data_Table = me->tt_badi_error.
+  ENDMETHOD.
+
+
 
 ENDCLASS.

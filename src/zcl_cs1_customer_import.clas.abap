@@ -34,6 +34,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD main_programm.
+
 *    "" Datenbanktabelle deleten
 *    DELETE FROM zcs1_customers.
 *
@@ -51,11 +52,9 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
         ""Der Aufruf der Methode dient zum erstmaligen Anlegen des Nummern Intervals
         "" und muss nur einmal aufgerufen werden.
         zcl_cs1_setupclass=>init_setup( )->run_setup( io_out ).
-*        return.
         DATA(obj) = NEW lcl_customer_import( ).
 
         obj->parse_csv( ).
-
         "out->write( obj->return_table( ) ).
 
         obj->parse_customers( ).
@@ -78,7 +77,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
         io_out->write( '-------- return_err_table ----------' ).
         io_out->write( obj->return_err_table( ) ).
 
-        io_out->write( obj->return_table( ) ).
+*        io_out->write( obj->return_table( ) ).
 
         obj->call_badi( ).
 *         out->write( obj-> ).
@@ -100,11 +99,19 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_cs1_validation~is_phone_valid.
-   rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_phone ) ).
+    rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_phone ) ).
   ENDMETHOD.
 
   METHOD zif_cs1_validation~is_fax_valid.
-    rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_fax ) ).
+    rv_valid = lcl_customer_import=>is_fax_valid( iv_tel = CONV string( iv_fax ) ).
+  ENDMETHOD.
+
+  METHOD zif_cs1_validation~latenumbering.
+    TRY.
+        rv_id = lcl_customer_import=>get_next_customer_id( ).
+      CATCH cx_number_ranges.
+        rv_id = '47857'.
+    ENDTRY.
   ENDMETHOD.
 
 ENDCLASS.

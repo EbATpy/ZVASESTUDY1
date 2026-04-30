@@ -9,36 +9,42 @@ draft table ZCS1_CUSTOMERS_D
 etag master LocalLastChangedAt
 lock master total etag LastChangedAt
 authorization master( global )
+late numbering
 {
-  field ( mandatory : create )
-   Customerid;
+  field ( readonly ) CustomerId;
 
   field ( readonly )
+   City,
    CreatedBy,
    CreatedAt,
    LocalLastChangedBy,
    LocalLastChangedAt,
    LastChangedAt;
 
-  field ( readonly : update )
-   Customerid;
-
-
   create;
   update;
   delete;
 
-  validation validateEmail on save { field Email; }
-  validation validatePhone on save { field Phone; }
-  validation validateFax on save { field Fax; }
-  determination getCity on save { field Postcode; }
 
   draft action Activate optimized;
   draft action Discard;
   draft action Edit;
   draft action Resume;
+
   draft determine action Prepare
-  { determination getCity; }
+  { validation validateEmail;
+    validation validatePhone;
+    validation validateFax;
+    determination getCity; }
+
+  validation validateEmail on save { field Email; }
+  validation validatePhone on save { field Phone; }
+  validation validateFax on save { field Fax; }
+
+  determination getCity on save { field Postcode; }
+  determination trimEmail on modify { field Email; }
+
+
 
   mapping for ZCS1_CUSTOMERS corresponding extensible
   {

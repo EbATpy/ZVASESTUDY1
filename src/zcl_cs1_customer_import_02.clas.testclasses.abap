@@ -58,7 +58,7 @@ CLASS ltcl_email_test IMPLEMENTATION.
         act = lcl_customer_import=>is_tel_valid( '+49500000' )
         msg = 'Standard-phones sollte gültig sein' ).
     cl_abap_unit_assert=>assert_true(
-        act = lcl_customer_import=>is_tel_valid( '+494099999' )
+        act = lcl_customer_import=>is_tel_valid( '+49999999' )
         msg = 'phones sollte gültig sein' ).
   ENDMETHOD.
 
@@ -67,7 +67,7 @@ CLASS ltcl_email_test IMPLEMENTATION.
         act = lcl_customer_import=>is_tel_valid( '+49ABCD' )
         msg = 'Fehlendes phones sollte ungültig sein' ).
     cl_abap_unit_assert=>assert_false(
-        act = lcl_customer_import=>is_tel_valid( 'AA' )
+        act = lcl_customer_import=>is_tel_valid( 'aaaa14' )
         msg = 'Zu Kurz sollte ungültig sein' ).
     cl_abap_unit_assert=>assert_false(
         act = lcl_customer_import=>is_tel_valid( ' ' )

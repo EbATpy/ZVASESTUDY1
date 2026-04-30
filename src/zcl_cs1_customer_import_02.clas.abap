@@ -1,4 +1,4 @@
-CLASS zcl_cs1_customer_import_2 DEFINITION
+CLASS zcl_cs1_customer_import_02 DEFINITION
   PUBLIC
 
   FINAL
@@ -9,6 +9,7 @@ CLASS zcl_cs1_customer_import_2 DEFINITION
     INTERFACES if_oo_adt_classrun.
     INTERFACES if_apj_dt_exec_object.
     INTERFACES if_apj_rt_exec_object.
+    INTERFACES zif_cs1_validation.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -17,7 +18,7 @@ CLASS zcl_cs1_customer_import_2 DEFINITION
 
 ENDCLASS.
 
-CLASS zcl_cs1_customer_import_2 IMPLEMENTATION.
+CLASS zcl_cs1_customer_import_02 IMPLEMENTATION.
 
   METHOD if_oo_adt_classrun~main.
     main_programm( io_out = out ).
@@ -59,15 +60,11 @@ CLASS zcl_cs1_customer_import_2 IMPLEMENTATION.
 
         obj->parse_customers( ).
 
-*        out->write( obj->return_table( ) ).
-
-        obj->import_customers( ).
-        io_out->write( '-------- return_table ----------' ).
         io_out->write( obj->return_table( ) ).
 
-        obj->company_err_tab( ).
-        io_out->write( '-------- return_err_table ----------' ).
-        io_out->write( obj->return_err_table( ) ).
+        "obj->import_customers( ).
+        "io_out->write( '-------- return_table ----------' ).
+        "io_out->write( obj->return_table( ) ).
 
         obj->new_customer_tab( ).
         io_out->write( '-------- return_new_customer_tab_table ----------' ).
@@ -76,6 +73,16 @@ CLASS zcl_cs1_customer_import_2 IMPLEMENTATION.
         obj->email_err_tab( ).
         io_out->write( '--------  Email_Tele_Telfax_Error ----------' ).
         io_out->write( obj->Email_Tele_Telfax_Error( ) ).
+
+        obj->company_err_tab( ).
+        io_out->write( '-------- return_err_table ----------' ).
+        io_out->write( obj->return_err_table( ) ).
+
+*                obj->company_err_tab( ).
+*        io_out->write( '-------- return_ROW_table ----------' ).
+*        io_out->write( obj->lt_raw_data( ) ).
+
+        io_out->write( obj->return_table( ) ).
 
         obj->call_badi( ).
 *         out->write( obj-> ).
@@ -90,6 +97,18 @@ CLASS zcl_cs1_customer_import_2 IMPLEMENTATION.
         io_out->write( |Datei: { lx_error->filename } Zeile: { lx_error->line_number }| ).
     ENDTRY.
 *    out->write( lt_customs ).
+  ENDMETHOD.
+
+  METHOD zif_cs1_validation~is_email_valid.
+    rv_valid = lcl_customer_import=>is_email_valid( iv_email = CONV string( iv_email ) ).
+  ENDMETHOD.
+
+  METHOD zif_cs1_validation~is_phone_valid.
+   rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_phone ) ).
+  ENDMETHOD.
+
+  METHOD zif_cs1_validation~is_fax_valid.
+    rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_fax ) ).
   ENDMETHOD.
 
 ENDCLASS.

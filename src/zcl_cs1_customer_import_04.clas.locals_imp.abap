@@ -21,6 +21,8 @@ CLASS lcl_customer_import DEFINITION.
            tt_raw TYPE STANDARD TABLE OF ty_import_raw WITH EMPTY KEY.
 
     TYPES: BEGIN OF ty_output,
+*             first_name   TYPE string,
+*             last_name    TYPE string,
              company      TYPE string,
              street       TYPE string,
              postcode     TYPE string,
@@ -89,6 +91,9 @@ CLASS lcl_customer_import DEFINITION.
       RETURNING VALUE(itab_new) TYPE tt_errors.
 
     METHODS call_badi.
+
+    METHODS write_Import_Err
+      IMPORTING iv_description TYPE string.
 
   PRIVATE SECTION.
     CLASS-METHODS split_csv_line
@@ -268,7 +273,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD import_customers.
-    DATA gt_customers TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city.
+    DATA gt_customers TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city. ""first_name last_name
     DATA gs_customers LIKE LINE OF gt_customers.
     DATA lv_country TYPE land1.
     DATA lv_currency TYPE zcurrency1.
@@ -309,6 +314,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
           " Prüfen, ob der Kunde unter dieser Adresse schon existiert
           ASSIGN gt_customers[ company  = gs_customers-company
+*                     first_name = gs_customers-first_name
+*                     last_name = gs_customers-last_name
                      street   = gs_customers-street
                      postcode = gs_customers-postcode
                      city     = gs_customers-city ] TO FIELD-SYMBOL(<lv_existing_id>).
@@ -319,7 +326,9 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
             MODIFY me->tt_customers FROM VALUE #( customers_id = gs_customers-customerid )
                 TRANSPORTING customers_id WHERE company = <fs_import>-company
-                                            AND  street = <fs_import>-street
+*                                            AND first_name = <fs_import>-first_name
+*                                            AND last_name = <fs_import>-last_name
+                                            AND street = <fs_import>-street
                                             AND postcode = <fs_import>-postcode
                                             AND city = <fs_import>-city.
 
@@ -361,14 +370,17 @@ CLASS lcl_customer_import IMPLEMENTATION.
                                           AND  street = <fs_import>-street
                                           AND postcode = <fs_import>-postcode
                                           AND city = <fs_import>-city.
-          TRY.
-              INSERT zcs1_import_err FROM @( VALUE #(
-                   " Hier hast du die ID (entweder neu oder existierend)
-                                     id  = lcl_customer_import=>get_next_id( )
-                             description = lv_full_text ) ).
-            CATCH cx_number_ranges INTO DATA(lx_nr_err2).
-              DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
-          ENDTRY.
+
+          write_import_err( lv_full_text ).
+
+*          TRY.
+*              INSERT zcs1_import_err FROM @( VALUE #(
+*                   " Hier hast du die ID (entweder neu oder existierend)
+*                                     id  = lcl_customer_import=>get_next_id( )
+*                             description = lv_full_text ) ).
+*            CATCH cx_number_ranges INTO DATA(lx_nr_err2).
+*              DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
+*          ENDTRY.
       ENDTRY.
     ENDLOOP.
 
@@ -393,8 +405,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
         ).
 
         " Wir nutzen die zurückgegebene Nummer
-        " ALPHA = OUT entfernt führende Nullen (z.B. '000001' -> '1')
-        rv_customerid = |{ lv_returned_number ALPHA = OUT }|.
+        " ALPHA = OUT entfernt führende Nullen (z.B. 1 -> '000001')
+        rv_customerid = |{ lv_returned_number ALPHA = IN }|.
 
       CATCH cx_number_ranges INTO DATA(lx_error).
         " Im Fehlerfall: Entweder leer lassen oder Fehler loggen
@@ -417,8 +429,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
         ).
 
         " Wir nutzen die zurückgegebene Nummer
-        " ALPHA = OUT entfernt führende Nullen (z.B. '000001' -> '1')
-        rv_id = |{ lv_returned_number ALPHA = OUT }|.
+       " ALPHA = OUT entfernt führende Nullen (z.B. 1 -> '000001')
+        rv_id = |{ lv_returned_number ALPHA = IN }|.
 
       CATCH cx_number_ranges INTO DATA(lx_error).
         " Im Fehlerfall: Entweder leer lassen oder Fehler loggen
@@ -494,6 +506,17 @@ CLASS lcl_customer_import IMPLEMENTATION.
       CATCH cx_root INTO DATA(lx_errorcall_badi).
     ENDTRY.
 
+  ENDMETHOD.
+
+  METHOD write_import_err.
+    TRY.
+        INSERT zcs1_import_err FROM @( VALUE #(
+                       " Hier hast du die ID (entweder neu oder existierend)
+                                         id  = lcl_customer_import=>get_next_id( )
+                                 description = iv_description ) ).
+      CATCH cx_number_ranges INTO DATA(lx_nr_err2).
+        DATA(ls_err2) = |Nummernkreisfehler: { lx_nr_err2->get_text( ) }|.
+    ENDTRY.
   ENDMETHOD.
 
 ENDCLASS.

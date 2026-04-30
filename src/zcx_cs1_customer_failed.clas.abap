@@ -9,7 +9,9 @@ CLASS zcx_cs1_customer_failed DEFINITION
   PUBLIC SECTION.
     INTERFACES if_t100_message.
     INTERFACES if_t100_dyn_msg.
- DATA filename TYPE String READ-ONLY.
+    INTERFACES if_abap_behv_message.
+
+    DATA filename TYPE String READ-ONLY.
 
 
     DATA Email TYPE string READ-ONLY.
@@ -19,11 +21,42 @@ CLASS zcx_cs1_customer_failed DEFINITION
     DATA header TYPE string READ-ONLY.
     DATA customer TYPE string READ-ONLY.
     DATA company TYPE string READ-ONLY.
+    DATA Pasing TYPE string READ-ONLY.
 
     DATA line_number TYPE i READ-ONLY.
     DATA column_name TYPE string READ-ONLY.
 
     CONSTANTS:
+      " --- RAP spezifische Meldungen (nutzen IF_T100_DYN_MSG) ---
+      BEGIN OF CurrencyTarget_missing,
+        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
+        msgno TYPE symsgno VALUE '001',
+        attr1 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV1',
+        attr2 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV2',
+        attr3 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV3',
+        attr4 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV4',
+      END OF CurrencyTarget_missing,
+
+      " --- RAP spezifische Meldungen (nutzen IF_T100_DYN_MSG) ---
+      BEGIN OF Umrechnungsfehler,
+        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
+        msgno TYPE symsgno VALUE '002',
+        attr1 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV1',
+        attr2 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV2',
+        attr3 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV3',
+        attr4 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV4',
+      END OF Umrechnungsfehler,
+
+      " --- RAP spezifische Meldungen (nutzen IF_T100_DYN_MSG) ---
+      BEGIN OF KD_Order_Sales_Volume,
+        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
+        msgno TYPE symsgno VALUE '003',
+        attr1 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV1',
+        attr2 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV2',
+        attr3 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV3',
+        attr4 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV4',
+      END OF KD_Order_Sales_Volume,
+
       BEGIN OF RegularExpression_Email,
         msgid TYPE symsgid VALUE 'Z01_MESSAGES',
         msgno TYPE symsgno VALUE '010',
@@ -71,23 +104,45 @@ CLASS zcx_cs1_customer_failed DEFINITION
         attr4 TYPE scx_attrname VALUE 'attr4',
       END OF customer_missing,
 
-      begin of company_to_long,
-        msgid type symsgid value 'Z01_MESSAGES',
-        msgno type symsgno value '060',
-        attr1 type scx_attrname value 'column_name',
-        attr2 type scx_attrname value 'filename',
-        attr3 type scx_attrname value 'attr3',
-        attr4 type scx_attrname value 'attr4',
-      end of company_to_long,
+      BEGIN OF company_to_long,
+        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
+        msgno TYPE symsgno VALUE '060',
+        attr1 TYPE scx_attrname VALUE 'column_name',
+        attr2 TYPE scx_attrname VALUE 'filename',
+        attr3 TYPE scx_attrname VALUE 'attr3',
+        attr4 TYPE scx_attrname VALUE 'attr4',
+      END OF company_to_long,
 
-       BEGIN OF RegularExpression_Tele,
+      BEGIN OF RegularExpression_Tele,
         msgid TYPE symsgid VALUE 'Z01_MESSAGES',
         msgno TYPE symsgno VALUE '070',
         attr1 TYPE scx_attrname VALUE 'Tele',
         attr2 TYPE scx_attrname VALUE 'column_name',
         attr3 TYPE scx_attrname VALUE 'attr3',
         attr4 TYPE scx_attrname VALUE 'attr4',
-      END OF RegularExpression_Tele.
+      END OF RegularExpression_Tele,
+
+      BEGIN OF RegularExpression_Pasing,
+        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
+        msgno TYPE symsgno VALUE '080',
+        attr1 TYPE scx_attrname VALUE 'Pasing',
+        attr2 TYPE scx_attrname VALUE 'column_name',
+        attr3 TYPE scx_attrname VALUE 'attr3',
+        attr4 TYPE scx_attrname VALUE 'attr4',
+      END OF RegularExpression_Pasing.
+
+    " Statische Fabrikmethode hinzufügen
+
+    CLASS-METHODS new_message
+  IMPORTING
+    i_textid   LIKE if_t100_message=>t100key
+    i_severity TYPE if_abap_behv_message=>t_severity DEFAULT if_abap_behv_message=>severity-error
+    i_v1       TYPE simple OPTIONAL
+    i_v2       TYPE simple OPTIONAL
+    i_v3       TYPE simple OPTIONAL
+    i_v4       TYPE simple OPTIONAL
+  RETURNING
+    VALUE(ro_obj) TYPE REF TO zcx_cs1_customer_failed.
 
 
 
@@ -101,14 +156,32 @@ CLASS zcx_cs1_customer_failed DEFINITION
         TelFax      LIKE TelFax OPTIONAL
         Tele        LIKE Tele OPTIONAL
         CSV_File    LIKE CSV_File OPTIONAL
-        header      LIKE header OPTIONAL
-       customer    LIKE customer OPTIONAL.
+        Pasing      LIKE Pasing OPTIONAL
+        customer    LIKE customer OPTIONAL.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
 ENDCLASS.
 
 CLASS zcx_cs1_customer_failed IMPLEMENTATION.
+
+  METHOD new_message.
+  " 1. Instanz erstellen (Konstruktor nutzt meist nur textid und previous)
+  ro_obj = NEW zcx_cs1_customer_failed(
+    textid   = i_textid ).
+
+  " 2. Schweregrad dem Interface-Attribut zuweisen
+  ro_obj->if_abap_behv_message~m_severity = i_severity.
+
+  " 3. Variablen für den T100-Text zuweisen
+  ro_obj->if_t100_dyn_msg~msgv1 = |{ i_v1 }|.
+  ro_obj->if_t100_dyn_msg~msgv2 = |{ i_v2 }|.
+  ro_obj->if_t100_dyn_msg~msgv3 = |{ i_v3 }|.
+  ro_obj->if_t100_dyn_msg~msgv4 = |{ i_v4 }|.
+
+ENDMETHOD.
+
+
   METHOD constructor ##ADT_SUPPRESS_GENERATION.
     super->constructor( previous = previous ).
     CLEAR me->textid.
@@ -125,6 +198,7 @@ CLASS zcx_cs1_customer_failed IMPLEMENTATION.
     me->header = header.
     me->customer = customer.
     me->column_name = column_name.
+    me->Pasing = Pasing.
 
 
   ENDMETHOD.

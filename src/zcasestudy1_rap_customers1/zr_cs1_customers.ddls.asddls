@@ -55,7 +55,7 @@ define root view entity ZR_CS1_CUSTOMERS
   currency as Currency,
   @Consumption.valueHelpDefinition: [ {
     entity.name: 'I_CurrencyStdVH', 
-    entity.element: 'CurrencyTarget', 
+    entity.element: 'Currency', 
     useForValidation: true
   } ]
   currency_target as CurrencyTarget,
