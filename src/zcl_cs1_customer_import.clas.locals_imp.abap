@@ -360,7 +360,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
     "" Country
     lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id_value
-                                DEFAULT 'D' ).
+                                DEFAULT 'DE' ).
     "" Currency
     lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id_value
                                 DEFAULT 'EUR' ).
