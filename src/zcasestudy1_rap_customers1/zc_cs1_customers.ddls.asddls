@@ -1,19 +1,14 @@
 @AbapCatalog.viewEnhancementCategory: [#PROJECTION_LIST]
 @Metadata.allowExtensions: true
 @Metadata.ignorePropagatedAnnotations: true
-
-@EndUserText: {
-  label: '###GENERATED Core Data Service Entity'
-}
-@ObjectModel: {
-  sapObjectNodeType.name: 'ZCS1_CUSTOMERS'
-}
+@EndUserText: {  label: 'Customer'}
+@ObjectModel: {  sapObjectNodeType.name: 'ZCS1_CUSTOMERS'}
 @AccessControl.authorizationCheck: #MANDATORY
 define root view entity ZC_CS1_CUSTOMERS
   provider contract transactional_query
   as projection on ZR_CS1_CUSTOMERS
   association [1..1] to ZR_CS1_CUSTOMERS as _BaseEntity on $projection.Customerid = _BaseEntity.Customerid
-
+  
 {
   key Customerid,
       Salutation,
@@ -22,14 +17,16 @@ define root view entity ZC_CS1_CUSTOMERS
       Company,
       Street,
       City,
+      @EndUserText.label: 'Anzahl Bestellungen'
+      _OrderCount.OrderCount,
 
       @Consumption: {
        valueHelpDefinition: [ {
          entity.name: 'I_Country',
           entity.element: 'Country',
          useForValidation: true
-       } ]
-      }
+       } ] }
+      @ObjectModel.text.association: '_Country' // Referenz auf die Assoziation im View
       Country,
       
       Postcode,
@@ -53,18 +50,18 @@ define root view entity ZC_CS1_CUSTOMERS
           entity.element: 'Currency',
           entity.name: 'I_CurrencyStdVH',
           useForValidation: true
-        } ]
-      }
+        } ] }
+      @ObjectModel.text.association: '_Currency' // Referenz auf die Assoziation im View
       Currency,
       @Consumption: {
         valueHelpDefinition: [ {
           entity.element: 'Currency',
           entity.name: 'I_CurrencyStdVH',
           useForValidation: true
-        } ]
-      }
+        } ] }
+      @ObjectModel.text.association: '_Currency' // Referenz auf die Assoziation im View
       CurrencyTarget,
-      
+      @ObjectModel.text.association: '_Language' // Referenz auf die Assoziation im View
       Language,
       Weblogin,
       Webpw,
@@ -80,5 +77,9 @@ define root view entity ZC_CS1_CUSTOMERS
       LocalLastChangedAt,
       @Semantics: { systemDateTime.lastChangedAt: true }
       LastChangedAt,
-      _BaseEntity
+      _BaseEntity,
+      _Language,
+      _Country,
+      _Currency,
+     _OrderCount
 }

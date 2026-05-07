@@ -22,6 +22,14 @@ define root view entity ZC_CS1_CUSTORDERS000
   OrderTotal,
   Discount,
   Info,
+    
+   @Consumption: {
+    valueHelpDefinition: [ {
+      entity.element: 'Status', 
+      entity.name: 'zcs1_StatusVH', 
+      useForValidation: true
+    } ]
+  }         
   Status,
   @Consumption: {
     valueHelpDefinition: [ {

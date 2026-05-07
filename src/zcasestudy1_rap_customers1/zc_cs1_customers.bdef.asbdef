@@ -11,6 +11,10 @@ use etag
   use update;
   use delete;
 
+
+  use action CancelOrders;
+  use action ShowStatistics;
+
   use action Edit;
   use action Activate;
   use action Discard;

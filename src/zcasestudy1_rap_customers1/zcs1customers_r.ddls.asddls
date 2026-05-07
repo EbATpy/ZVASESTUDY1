@@ -1,6 +1,6 @@
 @AbapCatalog.viewEnhancementCategory: [#NONE]
 @AccessControl.authorizationCheck: #NOT_REQUIRED
-@EndUserText.label: 'T125'
+@EndUserText.label: 'Customer'
 @Metadata.ignorePropagatedAnnotations: true
 define view entity zcs1customers_r
   as select from zcs1_customers

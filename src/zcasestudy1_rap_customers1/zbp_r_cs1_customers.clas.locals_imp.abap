@@ -9,7 +9,9 @@ CLASS lhc_zr_cs1_customers DEFINITION INHERITING FROM cl_abap_behavior_handler.
       trimEmail           FOR DETERMINE ON MODIFY IMPORTING keys FOR customers~trimEmail,
       validateCurrencyTarget FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateCurrencyTarget,
       SalesVolume FOR DETERMINE ON SAVE           IMPORTING keys FOR customers~SalesVolume,
-      setDefaults FOR DETERMINE ON SAVE         IMPORTING keys FOR customers~setDefaults.
+      setDefaults FOR DETERMINE ON SAVE         IMPORTING keys FOR customers~setDefaults,
+      CancelOrders FOR MODIFY IMPORTING keys FOR ACTION CUSTOMERS~CancelOrders RESULT result,
+      ShowStatistics FOR MODIFY IMPORTING keys FOR ACTION CUSTOMERS~ShowStatistics RESULT result.
 
 * validateVip FOR VALIDATE ON SAVE IMPORTING keys FOR CUSTOMERS~validateVip.
 * setDefaultCurrencyTarget FOR DETERMINE ON MODIFY   IMPORTING keys FOR customers~setDefaultCurrencyTarget,
@@ -384,6 +386,65 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
 *
 *
 *  ENDMETHOD.
+
+METHOD cancelorders.
+
+  LOOP AT keys INTO DATA(ls_key).
+
+    DATA(lv_customerid) = ls_key-%param-Customerid.
+
+    IF lv_customerid IS INITIAL.
+      APPEND VALUE #( %msg = new_message_with_text(
+                        severity = if_abap_behv_message=>severity-error
+                        text = 'Bitte einen Kunden auswählen' )
+                    ) TO reported-customers.
+      RETURN.
+    ENDIF.
+
+    " 1. Alle Orders vom Kunden lesen
+    SELECT orderid FROM zcs1_custorders
+      WHERE customerid = @lv_customerid
+      INTO TABLE @DATA(lt_orders_to_delete).
+
+    IF lt_orders_to_delete IS INITIAL.
+      APPEND VALUE #( %msg = new_message_with_text(
+                        severity = if_abap_behv_message=>severity-information
+                        text = |Keine Aufträge für Kunde { lv_customerid } gefunden| )
+                    ) TO reported-customers.
+      CONTINUE.
+    ENDIF.
+
+    " 2. RAP-konform per EML löschen
+    MODIFY ENTITIES OF zr_cs1_custorders000
+      ENTITY custorders
+      DELETE FROM VALUE #( FOR ls_order IN lt_orders_to_delete
+                           ( Orderid = ls_order-orderid ) )
+      FAILED DATA(lt_failed)
+      REPORTED DATA(lt_reported).
+
+    " 3. Fehler prüfen
+    IF lt_failed-custorders IS NOT INITIAL.
+      APPEND VALUE #( %msg = new_message_with_text(
+                        severity = if_abap_behv_message=>severity-error
+                        text = |Fehler beim Löschen der Aufträge| )
+                    ) TO reported-customers.
+      CONTINUE.
+    ENDIF.
+
+    " 4. Erfolgsmeldung
+    APPEND VALUE #( %msg = new_message_with_text(
+                      severity = if_abap_behv_message=>severity-success
+                      text = |{ lines( lt_orders_to_delete ) } Aufträge für Kunde { lv_customerid } storniert| )
+                  ) TO reported-customers.
+  ENDLOOP.
+
+  result = VALUE #( FOR key IN keys ( %cid = key-%cid ) ).
+
+ENDMETHOD.
+
+  METHOD showstatistics.
+    " Platzhalter für zweite Action
+  ENDMETHOD.
 
 ENDCLASS.
 

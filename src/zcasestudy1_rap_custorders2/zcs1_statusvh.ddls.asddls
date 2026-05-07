@@ -2,9 +2,11 @@
 @AccessControl.authorizationCheck: #NOT_REQUIRED
 @EndUserText.label: 'T128 Suchhilfe für Status aus Domäne'
 @Metadata.ignorePropagatedAnnotations: true
-define view entity ZR_cs1_StatusVH as select from DDCDS_CUSTOMER_DOMAIN_VALUE_T ( p_domain_name: 'ZDSTATUS1' )
+@ObjectModel.resultSet.sizeCategory: #XS 
+@Search.searchable: true
+define view entity zcs1_StatusVH as select from DDCDS_CUSTOMER_DOMAIN_VALUE_T ( p_domain_name: 'ZDSTATUS1' )
 {
-    @UI.hidden: true
+     @UI.hidden: true
     key domain_name,
     @UI.hidden: true
     key value_position,
@@ -21,5 +23,4 @@ define view entity ZR_cs1_StatusVH as select from DDCDS_CUSTOMER_DOMAIN_VALUE_T 
     @Semantics.text: true
     @Search.defaultSearchElement: true
     text      as StatusText
-
 }

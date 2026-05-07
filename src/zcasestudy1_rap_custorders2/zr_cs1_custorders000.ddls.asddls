@@ -15,6 +15,13 @@ define root view entity ZR_CS1_CUSTORDERS000
   order_total as OrderTotal,
   discount as Discount,
   info as Info,
+ @Consumption: {
+    valueHelpDefinition: [ {
+      entity.element: 'Status', 
+      entity.name: 'zcs1_StatusVH', 
+      useForValidation: true
+    } ]
+  }      
   status as Status,
   @Consumption.valueHelpDefinition: [ {
     entity.name: 'I_CurrencyStdVH', 
