@@ -30,19 +30,7 @@
      <SPRSL>D</SPRSL>
      <ARBGB>Z01_MESSAGES</ARBGB>
      <MSGNR>010</MSGNR>
-     <TEXT>RegularExpression Email -&gt; &amp;1 Error.</TEXT>
-    </T100>
-    <T100>
-     <SPRSL>D</SPRSL>
-     <ARBGB>Z01_MESSAGES</ARBGB>
-     <MSGNR>020</MSGNR>
-     <TEXT>RegularExpression TelFax -&gt; &amp;1 Error.</TEXT>
-    </T100>
-    <T100>
-     <SPRSL>D</SPRSL>
-     <ARBGB>Z01_MESSAGES</ARBGB>
-     <MSGNR>030</MSGNR>
-     <TEXT>CSV File Import Failed -&gt; &amp;1 Line Error</TEXT>
+     <TEXT>RegularExpression &amp;1 -&gt; Error &amp;2 .</TEXT>
     </T100>
     <T100>
      <SPRSL>D</SPRSL>
@@ -67,6 +55,12 @@
      <ARBGB>Z01_MESSAGES</ARBGB>
      <MSGNR>070</MSGNR>
      <TEXT>RegularExpression Tele -&gt; &amp;1 Error.</TEXT>
+    </T100>
+    <T100>
+     <SPRSL>D</SPRSL>
+     <ARBGB>Z01_MESSAGES</ARBGB>
+     <MSGNR>080</MSGNR>
+     <TEXT>CSV_Parsing -&gt; &amp;1</TEXT>
     </T100>
    </T100>
   </asx:values>

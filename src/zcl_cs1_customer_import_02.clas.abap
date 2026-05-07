@@ -54,7 +54,11 @@ CLASS zcl_cs1_customer_import_02 IMPLEMENTATION.
 *        return.
         DATA(obj) = NEW lcl_customer_import( ).
 
+        obj->delete_import_err(  ).
+
+
         obj->parse_csv( ).
+
 
         "out->write( obj->return_table( ) ).
 
@@ -109,6 +113,10 @@ CLASS zcl_cs1_customer_import_02 IMPLEMENTATION.
 
   METHOD zif_cs1_validation~is_fax_valid.
     rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_fax ) ).
+  ENDMETHOD.
+
+  METHOD zif_cs1_validation~latenumbering.
+
   ENDMETHOD.
 
 ENDCLASS.

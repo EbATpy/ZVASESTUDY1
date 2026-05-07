@@ -1,0 +1,5 @@
+CLASS zbp_c_cs1_import_err DEFINITION PUBLIC ABSTRACT FINAL FOR BEHAVIOR OF zc_cs1_import_err.
+ENDCLASS.
+
+CLASS zbp_c_cs1_import_err IMPLEMENTATION.
+ENDCLASS.

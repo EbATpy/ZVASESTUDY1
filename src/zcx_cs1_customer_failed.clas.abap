@@ -11,17 +11,14 @@ CLASS zcx_cs1_customer_failed DEFINITION
     INTERFACES if_t100_dyn_msg.
     INTERFACES if_abap_behv_message.
 
-    DATA filename TYPE String READ-ONLY.
-
-
-    DATA Email TYPE string READ-ONLY.
-    DATA TelFax TYPE string READ-ONLY.
-    DATA Tele TYPE string READ-ONLY.
-    DATA CSV_File TYPE string READ-ONLY.
-    DATA header TYPE string READ-ONLY.
-    DATA customer TYPE string READ-ONLY.
-    DATA company TYPE string READ-ONLY.
-    DATA Pasing TYPE string READ-ONLY.
+    DATA filename   TYPE String READ-ONLY.
+    DATA MediumData TYPE string READ-ONLY.
+    DATA Medium     TYPE string READ-ONLY.
+    DATA CSV_File   TYPE string READ-ONLY.
+    DATA header     TYPE string READ-ONLY.
+    DATA customer   TYPE string READ-ONLY.
+    DATA company    TYPE string READ-ONLY.
+    DATA Parsing    TYPE string READ-ONLY.
 
     DATA line_number TYPE i READ-ONLY.
     DATA column_name TYPE string READ-ONLY.
@@ -57,28 +54,19 @@ CLASS zcx_cs1_customer_failed DEFINITION
         attr4 TYPE scx_attrname VALUE 'IF_T100_DYN_MSG~MSGV4',
       END OF KD_Order_Sales_Volume,
 
-      BEGIN OF RegularExpression_Email,
+      BEGIN OF RegularExpression_Medium,
         msgid TYPE symsgid VALUE 'Z01_MESSAGES',
         msgno TYPE symsgno VALUE '010',
-        attr1 TYPE scx_attrname VALUE 'Email',
-        attr2 TYPE scx_attrname VALUE 'column_name',
+        attr1 TYPE scx_attrname VALUE 'Medium',
+        attr2 TYPE scx_attrname VALUE 'MediumData',
         attr3 TYPE scx_attrname VALUE 'attr3',
         attr4 TYPE scx_attrname VALUE 'attr4',
-      END OF RegularExpression_Email,
-
-      BEGIN OF RegularExpression_TelFax,
-        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
-        msgno TYPE symsgno VALUE '020',
-        attr1 TYPE scx_attrname VALUE 'TelFax',
-        attr2 TYPE scx_attrname VALUE 'column_name',
-        attr3 TYPE scx_attrname VALUE 'attr3',
-        attr4 TYPE scx_attrname VALUE 'attr4',
-      END OF RegularExpression_TelFax,
+      END OF RegularExpression_Medium,
 
       BEGIN OF CSV_File_Import,
         msgid TYPE symsgid VALUE 'Z01_MESSAGES',
-        msgno TYPE symsgno VALUE '030',
-        attr1 TYPE scx_attrname VALUE ' CSV_File',
+        msgno TYPE symsgno VALUE '080',
+        attr1 TYPE scx_attrname VALUE 'Parsing',
         attr2 TYPE scx_attrname VALUE 'column_name',
         attr3 TYPE scx_attrname VALUE 'attr3',
         attr4 TYPE scx_attrname VALUE 'attr4',
@@ -92,8 +80,6 @@ CLASS zcx_cs1_customer_failed DEFINITION
         attr3 TYPE scx_attrname VALUE 'attr3',
         attr4 TYPE scx_attrname VALUE 'attr4',
       END OF invalid_header,
-
-
 
       BEGIN OF customer_missing,
         msgid TYPE symsgid VALUE 'Z01_MESSAGES',
@@ -120,29 +106,21 @@ CLASS zcx_cs1_customer_failed DEFINITION
         attr2 TYPE scx_attrname VALUE 'column_name',
         attr3 TYPE scx_attrname VALUE 'attr3',
         attr4 TYPE scx_attrname VALUE 'attr4',
-      END OF RegularExpression_Tele,
+      END OF RegularExpression_Tele.
 
-      BEGIN OF RegularExpression_Pasing,
-        msgid TYPE symsgid VALUE 'Z01_MESSAGES',
-        msgno TYPE symsgno VALUE '080',
-        attr1 TYPE scx_attrname VALUE 'Pasing',
-        attr2 TYPE scx_attrname VALUE 'column_name',
-        attr3 TYPE scx_attrname VALUE 'attr3',
-        attr4 TYPE scx_attrname VALUE 'attr4',
-      END OF RegularExpression_Pasing.
 
     " Statische Fabrikmethode hinzufügen
 
     CLASS-METHODS new_message
-  IMPORTING
-    i_textid   LIKE if_t100_message=>t100key
-    i_severity TYPE if_abap_behv_message=>t_severity DEFAULT if_abap_behv_message=>severity-error
-    i_v1       TYPE simple OPTIONAL
-    i_v2       TYPE simple OPTIONAL
-    i_v3       TYPE simple OPTIONAL
-    i_v4       TYPE simple OPTIONAL
-  RETURNING
-    VALUE(ro_obj) TYPE REF TO zcx_cs1_customer_failed.
+      IMPORTING
+        i_textid      LIKE if_t100_message=>t100key
+        i_severity    TYPE if_abap_behv_message=>t_severity DEFAULT if_abap_behv_message=>severity-error
+        i_v1          TYPE simple OPTIONAL
+        i_v2          TYPE simple OPTIONAL
+        i_v3          TYPE simple OPTIONAL
+        i_v4          TYPE simple OPTIONAL
+      RETURNING
+        VALUE(ro_obj) TYPE REF TO zcx_cs1_customer_failed.
 
 
 
@@ -152,11 +130,10 @@ CLASS zcx_cs1_customer_failed DEFINITION
         previous    LIKE previous OPTIONAL
         column_name LIKE column_name OPTIONAL
         filename    LIKE filename OPTIONAL
-        Email       LIKE Email OPTIONAL
-        TelFax      LIKE TelFax OPTIONAL
-        Tele        LIKE Tele OPTIONAL
+        Medium      LIKE Medium OPTIONAL
+        MediumData  LIKE MediumData OPTIONAL
         CSV_File    LIKE CSV_File OPTIONAL
-        Pasing      LIKE Pasing OPTIONAL
+        Parsing     LIKE Parsing OPTIONAL
         customer    LIKE customer OPTIONAL.
 
   PROTECTED SECTION.
@@ -166,20 +143,20 @@ ENDCLASS.
 CLASS zcx_cs1_customer_failed IMPLEMENTATION.
 
   METHOD new_message.
-  " 1. Instanz erstellen (Konstruktor nutzt meist nur textid und previous)
-  ro_obj = NEW zcx_cs1_customer_failed(
-    textid   = i_textid ).
+    " 1. Instanz erstellen (Konstruktor nutzt meist nur textid und previous)
+    ro_obj = NEW zcx_cs1_customer_failed(
+      textid   = i_textid ).
 
-  " 2. Schweregrad dem Interface-Attribut zuweisen
-  ro_obj->if_abap_behv_message~m_severity = i_severity.
+    " 2. Schweregrad dem Interface-Attribut zuweisen
+    ro_obj->if_abap_behv_message~m_severity = i_severity.
 
-  " 3. Variablen für den T100-Text zuweisen
-  ro_obj->if_t100_dyn_msg~msgv1 = |{ i_v1 }|.
-  ro_obj->if_t100_dyn_msg~msgv2 = |{ i_v2 }|.
-  ro_obj->if_t100_dyn_msg~msgv3 = |{ i_v3 }|.
-  ro_obj->if_t100_dyn_msg~msgv4 = |{ i_v4 }|.
+    " 3. Variablen für den T100-Text zuweisen
+    ro_obj->if_t100_dyn_msg~msgv1 = |{ i_v1 }|.
+    ro_obj->if_t100_dyn_msg~msgv2 = |{ i_v2 }|.
+    ro_obj->if_t100_dyn_msg~msgv3 = |{ i_v3 }|.
+    ro_obj->if_t100_dyn_msg~msgv4 = |{ i_v4 }|.
 
-ENDMETHOD.
+  ENDMETHOD.
 
 
   METHOD constructor ##ADT_SUPPRESS_GENERATION.
@@ -191,14 +168,13 @@ ENDMETHOD.
       if_t100_message~t100key = textid.
     ENDIF.
     me->filename = filename.
-    me->Email = Email.
-    me->TelFax = TelFax.
-    me->Tele = Tele.
+    me->Medium = Medium.
+    me->MediumData = MediumData.
     me->CSV_File = CSV_File.
     me->header = header.
     me->customer = customer.
     me->column_name = column_name.
-    me->Pasing = Pasing.
+    me->Parsing = Parsing.
 
 
   ENDMETHOD.

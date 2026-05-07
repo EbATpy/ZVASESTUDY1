@@ -107,4 +107,12 @@ CLASS zcl_cs1_customer_import_04 IMPLEMENTATION.
     rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_fax ) ).
   ENDMETHOD.
 
+  METHOD zif_cs1_validation~latenumbering.
+    TRY.
+        rv_id = lcl_customer_import=>get_next_customer_id( ).
+      CATCH cx_number_ranges.
+        rv_id = '47857'.
+    ENDTRY.
+  ENDMETHOD.
+
 ENDCLASS.

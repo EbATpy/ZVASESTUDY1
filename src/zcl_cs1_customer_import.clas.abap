@@ -54,6 +54,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
         zcl_cs1_setupclass=>init_setup( )->run_setup( io_out ).
         DATA(obj) = NEW lcl_customer_import( ).
 
+
         obj->parse_csv( ).
         "out->write( obj->return_table( ) ).
 
@@ -110,7 +111,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
     TRY.
         rv_id = lcl_customer_import=>get_next_customer_id( ).
       CATCH cx_number_ranges.
-        rv_id = '47857'.
+        "handle exception
     ENDTRY.
   ENDMETHOD.
 

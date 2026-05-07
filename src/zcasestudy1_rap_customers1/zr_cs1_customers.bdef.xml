@@ -26,6 +26,12 @@
       <TYPE>text/html</TYPE>
       <TITLE>Source Content (HTML)</TITLE>
      </item>
+     <item>
+      <HREF>./zr_cs1_customers/enhancement/elements</HREF>
+      <REL>http://www.sap.com/adt/relations/enhancements</REL>
+      <TYPE>application/vnd.sap.adt.elementinfo+xml</TYPE>
+      <TITLE>Enhancements</TITLE>
+     </item>
     </LINKS>
     <MASTER_LANGUAGE>DE</MASTER_LANGUAGE>
     <ABAP_LANGU_VERSION>5</ABAP_LANGU_VERSION>

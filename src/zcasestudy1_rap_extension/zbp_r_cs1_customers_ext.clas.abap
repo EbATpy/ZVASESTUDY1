@@ -1,0 +1,5 @@
+CLASS zbp_r_cs1_customers_ext DEFINITION PUBLIC ABSTRACT FINAL FOR BEHAVIOR OF zr_cs1_customers.
+ENDCLASS.
+
+CLASS zbp_r_cs1_customers_ext IMPLEMENTATION.
+ENDCLASS.

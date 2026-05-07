@@ -273,44 +273,57 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD import_customers.
-    DATA gt_customers TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city. ""first_name last_name
+    DATA gt_customers TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city.
     DATA gs_customers LIKE LINE OF gt_customers.
     DATA lv_country TYPE land1.
     DATA lv_currency TYPE zcurrency1.
     DATA lv_currency_target1 TYPE zcurrency_target1.
     DATA lv_last_date TYPE zlast_date1.
+    DATA lv_language TYPE spras.
+    DATA lv_accLock TYPE abap_boolean.
+    DATA lv_WEBPW TYPE zwebpw1.
 
-
-    ""+++++++++++++++++ NEU für Exception Class !!!!! muss auch noch ins original!!!++++++++++
     CONSTANTS lc_method_name TYPE string VALUE '=>IMPORT_CUSTOMERS'.
 
-    "" Hier werden die Standarddaten aus der Tabelle eingelesen
     SELECT * FROM zcs1_service INTO TABLE @DATA(lt_service).
-
-    "" Country
-    lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id_value
+     "" WEBPW
+    lv_WEBPW = VALUE #( lt_service[ id = 'DefaultWebPW' active = abap_true ]-id_value
+                                DEFAULT 'Welcome1!' ).
+    "" Acc-Lock
+    lv_AccLock = xsdbool( VALUE #(  lt_service[ id = 'DefaultAccLock' active = abap_true ]-id_value
+                                DEFAULT 'abap_false' ) = 'abap_false' ).
+    "" Language
+    lv_language = VALUE #( lt_service[ id = 'DefaultLanguage' active = abap_true ]-id_value
                                 DEFAULT 'D' ).
+    "" Country
+    lv_country = VALUE #( lt_service[ id = 'DefaultCountry' active = abap_true ]-id_value
+                                DEFAULT 'DE' ).
     "" Currency
-    lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id_value
+    lv_currency = VALUE #( lt_service[ id = 'DefaultCurrency' active = abap_true ]-id_value
                                 DEFAULT 'EUR' ).
     "" Currency_target1
-    lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id_value
+    lv_currency_target1 = VALUE #( lt_service[ id = 'DefaultCurrencyTarget' active = abap_true ]-id_value
                                     DEFAULT 'USD' ).
-    "" AktDatum für Last_date Statt sy-datum vielleicht mit cl_abap_context_info=>get_system_date( ) die Methode ging aber nicht
-    lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id_value
-                               DEFAULT cl_abap_context_info=>get_system_date( ) ).
+
+    lv_last_date = COND #(
+                            WHEN line_exists( lt_service[ id = 'DefaultAktDatum' active = abap_true ] )
+                              THEN cl_abap_context_info=>get_system_date( )
+                            ELSE cl_abap_context_info=>get_system_date( )
+                          ).
+
 
     SELECT * FROM zcs1_customers INTO TABLE @gt_customers.
 
     LOOP AT me->tt_customers  ASSIGNING FIELD-SYMBOL(<fs_import>).
       TRY.
           MOVE-CORRESPONDING <fs_import> TO gs_customers.
-
-          "" Schon mal die Standartwerte hier festsetzen später noch mit Service Tabelle
           gs_customers-country = lv_country.
           gs_customers-currency = lv_currency.
           gs_customers-currency_target = lv_currency_target1.
           gs_customers-last_date = lv_last_date.
+          gs_customers-language = lv_language.
+          gs_customers-acc_lock = lv_acclock.
+          gs_customers-webpw = lv_webpw.
 
           " Prüfen, ob der Kunde unter dieser Adresse schon existiert
           ASSIGN gt_customers[ company  = gs_customers-company
@@ -429,7 +442,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
         ).
 
         " Wir nutzen die zurückgegebene Nummer
-       " ALPHA = OUT entfernt führende Nullen (z.B. 1 -> '000001')
+        " ALPHA = OUT entfernt führende Nullen (z.B. 1 -> '000001')
         rv_id = |{ lv_returned_number ALPHA = IN }|.
 
       CATCH cx_number_ranges INTO DATA(lx_error).

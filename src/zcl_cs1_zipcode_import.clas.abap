@@ -44,6 +44,7 @@ CLASS zcl_cs1_zipcode_import IMPLEMENTATION.
       ( client = sy-mandt postcode = '86150' city = 'Augsburg' )
       ( client = sy-mandt postcode = '65183' city = 'Wiesbaden' )
       ( client = sy-mandt postcode = '39104' city = 'Magdeburg' )
+      ( client = sy-mandt postcode = '22145' city = 'Hamburg' )
       ( client = sy-mandt postcode = '41061' city = 'Mönchengladbach' )
       ( client = sy-mandt postcode = '57072' city = 'Siegen' )
       ( client = sy-mandt postcode = '24103' city = 'Kiel' )
