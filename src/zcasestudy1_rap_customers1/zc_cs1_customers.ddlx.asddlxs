@@ -164,6 +164,7 @@ annotate view ZC_CS1_CUSTOMERS with
     position: 130
   } ]
   SalesVolumeTarget;
+  
 
   @UI.identification: [ {
     position: 140

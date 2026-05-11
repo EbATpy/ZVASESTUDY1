@@ -24,3 +24,4 @@ define view entity zcs1_StatusVH as select from DDCDS_CUSTOMER_DOMAIN_VALUE_T ( 
     @Search.defaultSearchElement: true
     text      as StatusText
 }
+where language = $session.system_language

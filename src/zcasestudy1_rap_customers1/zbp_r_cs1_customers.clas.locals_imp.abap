@@ -2,16 +2,18 @@ CLASS lhc_zr_cs1_customers DEFINITION INHERITING FROM cl_abap_behavior_handler.
   PRIVATE SECTION.
     METHODS:
       get_global_authorizations FOR GLOBAL AUTHORIZATION IMPORTING  REQUEST requested_authorizations FOR customers RESULT result,
-      validateEmail       FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateEmail,
-      validatePhone       FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validatePhone,
-      validateFax         FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateFax,
-      Determinate_getCity FOR DETERMINE ON SAVE   IMPORTING keys FOR customers~Determinate_getCity,
-      trimEmail           FOR DETERMINE ON MODIFY IMPORTING keys FOR customers~trimEmail,
-      validateCurrencyTarget FOR VALIDATE ON SAVE IMPORTING keys FOR customers~validateCurrencyTarget,
-      SalesVolume FOR DETERMINE ON SAVE           IMPORTING keys FOR customers~SalesVolume,
-      setDefaults FOR DETERMINE ON SAVE         IMPORTING keys FOR customers~setDefaults,
-      CancelOrders FOR MODIFY IMPORTING keys FOR ACTION CUSTOMERS~CancelOrders RESULT result,
-      ShowStatistics FOR MODIFY IMPORTING keys FOR ACTION CUSTOMERS~ShowStatistics RESULT result.
+      validateEmail          FOR VALIDATE  ON SAVE   IMPORTING keys FOR customers~validateEmail,
+      validatePhone          FOR VALIDATE  ON SAVE   IMPORTING keys FOR customers~validatePhone,
+      validateFax            FOR VALIDATE  ON SAVE   IMPORTING keys FOR customers~validateFax,
+      Determinate_getCity    FOR DETERMINE ON SAVE   IMPORTING keys FOR customers~Determinate_getCity,
+      validateCurrencyTarget FOR VALIDATE  ON SAVE   IMPORTING keys FOR customers~validateCurrencyTarget,
+      SalesVolume            FOR DETERMINE ON MODIFY   IMPORTING keys FOR customers~SalesVolume,
+      setDefaults            FOR DETERMINE ON SAVE   IMPORTING keys FOR customers~setDefaults,
+      trimEmail              FOR DETERMINE ON MODIFY IMPORTING keys FOR customers~trimEmail,
+      CancelOrders           FOR MODIFY              IMPORTING keys
+                                                                 FOR ACTION customers~CancelOrders   RESULT result,
+      ShowStatistics         FOR MODIFY              IMPORTING keys
+                                                                 FOR ACTION customers~ShowStatistics RESULT result.
 
 * validateVip FOR VALIDATE ON SAVE IMPORTING keys FOR CUSTOMERS~validateVip.
 * setDefaultCurrencyTarget FOR DETERMINE ON MODIFY   IMPORTING keys FOR customers~setDefaultCurrencyTarget,
@@ -177,19 +179,49 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD validateCurrencyTarget.
-    " 1. Daten lesen
+    " 1. Daten der zu prüfenden Kunden einlesen
     READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
       ENTITY customers
-        FIELDS ( CurrencyTarget )
+        FIELDS ( CurrencyTarget SalesVolumeTarget ) " SalesVolumeTarget mitlesen für den Check
         WITH CORRESPONDING #( keys )
       RESULT DATA(lt_customers).
 
+    " 2. Hilfstabelle für die Datenbank-Abfrage (Existenzprüfung)
+    DATA(lt_curr_filter) = lt_customers.
+    DELETE lt_curr_filter WHERE CurrencyTarget IS INITIAL.
+    SORT lt_curr_filter BY CurrencyTarget.
+    DELETE ADJACENT DUPLICATES FROM lt_curr_filter COMPARING CurrencyTarget.
+
+    " 3. Hashed Table für blitzschnellen Zugriff
+    TYPES: BEGIN OF ty_s_currency,
+             Currency TYPE I_Currency-Currency,
+           END OF ty_s_currency.
+    DATA lt_valid_currencies TYPE HASHED TABLE OF ty_s_currency WITH UNIQUE KEY Currency.
+
+    " 4. Einmaliger DB-Zugriff für alle Währungen
+    IF lt_curr_filter IS NOT INITIAL.
+      SELECT Currency FROM I_Currency
+        FOR ALL ENTRIES IN @lt_curr_filter
+        WHERE Currency = @lt_curr_filter-CurrencyTarget
+        INTO TABLE @lt_valid_currencies.
+    ENDIF.
+
+    " 5. Validierungsschleife
     LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
 
-      " Check 1: Ist das Feld leer? (Deine bisherige Logik)
+      " --- SPEZIAL-LOGIK FÜR JPY ---
+      " Wenn JPY gewählt wurde, ignorieren wir die Fehlermeldung bezüglich
+      " der Nachkommastellen bewusst, damit die Determination 'SalesVolume'
+      " den Wert im Hintergrund glattziehen kann.
+      IF <ls_customer>-CurrencyTarget = 'JPY' AND ( <ls_customer>-SalesVolumeTarget MOD 1 ) <> 0.
+        " Wir machen hier einfach NICHTS (kein APPEND to failed).
+        " Die Determination übernimmt die Korrektur.
+      ENDIF.
+
+      " --- NORMALE FEHLERPRÜFUNG ---
+
+      " Check 1: Pflichtfeldprüfung
       IF <ls_customer>-CurrencyTarget IS INITIAL.
-        " Hier könntest du ein MODIFY machen (wie in deinem Code),
-        " ODER du meldest einen Fehler:
         APPEND VALUE #( %tky = <ls_customer>-%tky ) TO failed-customers.
         APPEND VALUE #( %tky = <ls_customer>-%tky
                         %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
@@ -198,87 +230,90 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
-      " Check 2: Existiert die Währung in der SAP-Standardtabelle?
-      SELECT SINGLE @abap_true FROM I_Currency WHERE Currency = @<ls_customer>-CurrencyTarget INTO @DATA(lv_exists).
-
-      IF lv_exists <> abap_true.
-        " Fehlgeschlagen -> Verhindert das Speichern auf der DB
+      " Check 2: Existenzprüfung (z.B. gegen 'ZZZ')
+      " Diese Fehlermeldung soll weiterhin erscheinen!
+      IF NOT line_exists( lt_valid_currencies[ Currency = <ls_customer>-CurrencyTarget ] ).
         APPEND VALUE #( %tky = <ls_customer>-%tky ) TO failed-customers.
-
-        " Fehlermeldung an das UI
         APPEND VALUE #( %tky = <ls_customer>-%tky
                         %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
                                                       text     = |Währung { <ls_customer>-CurrencyTarget } ist nicht zulässig!| )
                         %element-currencytarget = if_abap_behv=>mk-on ) TO reported-customers.
       ENDIF.
+
     ENDLOOP.
+
   ENDMETHOD.
 
   METHOD SalesVolume.
-    " 1. Daten der Instanzen lesen!
+    " --- SCHRITT 1: MASSENVERARBEITUNG (READ) ---
     READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
       ENTITY customers
         FIELDS ( SalesVolume Currency CurrencyTarget )
         WITH CORRESPONDING #( keys )
-      RESULT DATA(lt_customers).
+      RESULT DATA(lt_customers)
+      FAILED DATA(lt_failed_read).
 
-    DATA lt_updates TYPE TABLE FOR UPDATE zr_cs1_customers.
+    DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
 
+    " --- SCHRITT 2: DER LOOP ---
     LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<fs_customer>).
-      " NEU: Sicherheits-Check gegen Runtime Error
-      " Wenn eines der Felder leer ist, überspringen wir die Berechnung
-      IF <fs_customer>-SalesVolume    IS INITIAL OR
-         <fs_customer>-Currency       IS INITIAL OR
-         <fs_customer>-CurrencyTarget IS INITIAL.
+
+      IF <fs_customer>-SalesVolume IS INITIAL OR <fs_customer>-CurrencyTarget IS INITIAL.
         CONTINUE.
       ENDIF.
 
-      DATA lv_converted_amount TYPE zsales_volume_target1.
+      " --- SCHRITT 3: UMRECHNUNG ---
+      DATA lv_converted_amount TYPE zr_cs1_customers-SalesVolumeTarget.
 
       TRY.
-          " 2. Währungsumrechnung
           cl_exchange_rates=>convert_to_foreign_currency(
             EXPORTING
-              local_amount             = <fs_customer>-SalesVolume
-              local_currency    = <fs_customer>-Currency
-              foreign_currency    = <fs_customer>-CurrencyTarget
-              date               = cl_abap_context_info=>get_system_date( )
+              local_amount     = <fs_customer>-SalesVolume
+              local_currency   = <fs_customer>-Currency
+              foreign_currency = <fs_customer>-CurrencyTarget
+              date             = lv_today
             IMPORTING
-              foreign_amount             = lv_converted_amount
+              foreign_amount   = lv_converted_amount
           ).
 
-          " 3. Erfolgsfall: Update-Tabelle befüllen
-          APPEND VALUE #( %tky              = <fs_customer>-%tky
-                          SalesVolumeTarget = lv_converted_amount ) TO lt_updates.
+          " Rundung für JPY
+          IF <fs_customer>-CurrencyTarget = 'JPY'.
+            lv_converted_amount = round( val = lv_converted_amount dec = 0 ).
+          ENDIF.
 
+          " --- SCHRITT 4: DIREKTER MODIFY PRO ZEILE ---
+          " Durch die Verwendung von <fs_customer>-%tky stellen wir sicher,
+          " dass exakt der Draft-Status (is_draft = '01') getroffen wird.
+          MODIFY ENTITIES OF zr_cs1_customers IN LOCAL MODE
+             ENTITY customers
+               UPDATE FIELDS ( SalesVolumeTarget )
+               WITH VALUE #( ( %tky              = <fs_customer>-%tky
+                               SalesVolumeTarget = lv_converted_amount
+                               %control-SalesVolumeTarget = if_abap_behv=>mk-on ) )
+             FAILED DATA(ls_loop_failed)
+             REPORTED DATA(ls_loop_reported).
+
+          " Fehler sammeln (Korrekt für REPORTED Strukturen)
+          IF ls_loop_reported-customers IS NOT INITIAL.
+            reported-customers = CORRESPONDING #( BASE ( reported-customers ) ls_loop_reported-customers ).
+          ENDIF.
 
         CATCH cx_exchange_rates INTO DATA(lx_rates).
-          " Das Datum für die Umrechnung (wird für die Logik und die Meldung genutzt)
-          DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
-
-*        " 4. In FAILED eintragen, um Speichern zu verhindern (Rollback-Effekt)
-*        APPEND VALUE #( %tky = <fs_customer>-%tky ) TO failed-customer.
-
-          " 5. Fehlermeldung via REPORTED an UI geben (nutzt deine Ausnahmeklasse)
           APPEND VALUE #( %tky = <fs_customer>-%tky
                           %msg = zcx_cs1_customer_failed=>new_message(
                                    i_textid   = zcx_cs1_customer_failed=>Umrechnungsfehler
                                    i_severity = if_abap_behv_message=>severity-error
-                                   i_v1       = <fs_customer>-CurrencyTarget " Deine Variable 1
-                                   i_v2       = |{ lv_today DATE = USER }|    " Deine Variable 2
-                                   i_v3       = <fs_customer>-Currency       " Optional: Quellwährung
+                                   i_v1       = <fs_customer>-CurrencyTarget
                                    i_v4       = |{ <fs_customer>-SalesVolume }| )
-                          %element-SalesVolume = if_abap_behv=>mk-on " Markiert das Feld im UI rot
                         ) TO reported-customers.
       ENDTRY.
     ENDLOOP.
-
-    " 6. Update nur für erfolgreiche Berechnungen
-    IF lt_updates IS NOT INITIAL.
-      MODIFY ENTITIES OF zr_cs1_customers IN LOCAL MODE
+    IF lt_customers IS NOT INITIAL.
+      READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
         ENTITY customers
-          UPDATE FIELDS ( SalesVolumeTarget )
-          WITH lt_updates.
+          FIELDS ( SalesVolumeTarget )
+          WITH CORRESPONDING #( keys )
+        RESULT DATA(lt_refresh_buffer).
     ENDIF.
 
   ENDMETHOD.
@@ -387,60 +422,69 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
 *
 *  ENDMETHOD.
 
-METHOD cancelorders.
+  METHOD cancelorders.
 
-  LOOP AT keys INTO DATA(ls_key).
+    LOOP AT keys INTO DATA(ls_key).
 
-    DATA(lv_customerid) = ls_key-%param-Customerid.
+      DATA(lv_customerid) = ls_key-%param-Customerid.
 
-    IF lv_customerid IS INITIAL.
+      IF lv_customerid IS INITIAL.
+        APPEND VALUE #( %msg = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-error
+                          text = 'Bitte einen Kunden auswählen' )
+                      ) TO reported-customers.
+        RETURN.
+      ENDIF.
+
+      " 1. Alle Orders vom Kunden lesen
+      SELECT * FROM zcs1_custorders
+        WHERE customerid = @lv_customerid
+          AND status LIKE 'B%'
+        INTO TABLE @DATA(lt_orders_to_update).
+
+      IF lt_orders_to_update IS INITIAL.
+        APPEND VALUE #( %msg = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-information
+                          text = |Keine Bestellungen für Kunde { lv_customerid } gefunden| )
+                      ) TO reported-customers.
+        CONTINUE.
+      ENDIF.
+
+      " 2. Erstes Zeichen von B auf S ändern
+      LOOP AT lt_orders_to_update ASSIGNING FIELD-SYMBOL(<ls_order>).
+        <ls_order>-status+0(1) = 'S'.   " BN -> SN, BN01 -> SN01
+      ENDLOOP.
+
+      " 2. Status per EML auf 'ST' updaten statt löschen
+      MODIFY ENTITIES OF zr_cs1_custorders000
+        ENTITY custorders
+        UPDATE FIELDS ( Status )
+        WITH VALUE #( FOR ls_order IN lt_orders_to_update
+                      ( Orderid = ls_order-orderid
+                        Status  = ls_order-status ) )
+        FAILED DATA(lt_failed)
+        REPORTED DATA(lt_reported)
+        MAPPED DATA(lt_mapped).
+
+      " 3. Fehler prüfen
+      IF lt_failed-custorders IS NOT INITIAL.
+        APPEND VALUE #( %msg = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-error
+                          text = |Fehler beim Stornieren der Bestellungen| )
+                      ) TO reported-customers.
+        CONTINUE.
+      ENDIF.
+
+      " 4. Erfolgsmeldung
       APPEND VALUE #( %msg = new_message_with_text(
-                        severity = if_abap_behv_message=>severity-error
-                        text = 'Bitte einen Kunden auswählen' )
+                        severity = if_abap_behv_message=>severity-success
+                        text = |{ lines( lt_orders_to_update ) } Bestellungen für Kunde { lv_customerid } storniert| )
                     ) TO reported-customers.
-      RETURN.
-    ENDIF.
+    ENDLOOP.
 
-    " 1. Alle Orders vom Kunden lesen
-    SELECT orderid FROM zcs1_custorders
-      WHERE customerid = @lv_customerid
-      INTO TABLE @DATA(lt_orders_to_delete).
+    result = VALUE #( FOR key IN keys ( %cid = key-%cid ) ).
 
-    IF lt_orders_to_delete IS INITIAL.
-      APPEND VALUE #( %msg = new_message_with_text(
-                        severity = if_abap_behv_message=>severity-information
-                        text = |Keine Aufträge für Kunde { lv_customerid } gefunden| )
-                    ) TO reported-customers.
-      CONTINUE.
-    ENDIF.
-
-    " 2. RAP-konform per EML löschen
-    MODIFY ENTITIES OF zr_cs1_custorders000
-      ENTITY custorders
-      DELETE FROM VALUE #( FOR ls_order IN lt_orders_to_delete
-                           ( Orderid = ls_order-orderid ) )
-      FAILED DATA(lt_failed)
-      REPORTED DATA(lt_reported).
-
-    " 3. Fehler prüfen
-    IF lt_failed-custorders IS NOT INITIAL.
-      APPEND VALUE #( %msg = new_message_with_text(
-                        severity = if_abap_behv_message=>severity-error
-                        text = |Fehler beim Löschen der Aufträge| )
-                    ) TO reported-customers.
-      CONTINUE.
-    ENDIF.
-
-    " 4. Erfolgsmeldung
-    APPEND VALUE #( %msg = new_message_with_text(
-                      severity = if_abap_behv_message=>severity-success
-                      text = |{ lines( lt_orders_to_delete ) } Aufträge für Kunde { lv_customerid } storniert| )
-                  ) TO reported-customers.
-  ENDLOOP.
-
-  result = VALUE #( FOR key IN keys ( %cid = key-%cid ) ).
-
-ENDMETHOD.
+  ENDMETHOD.
 
   METHOD showstatistics.
     " Platzhalter für zweite Action

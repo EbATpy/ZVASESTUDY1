@@ -41,6 +41,34 @@
      <DOMVALUE_L>BN</DOMVALUE_L>
      <DDTEXT>Bestellung neu</DDTEXT>
     </DD07V>
+    <DD07V>
+     <DOMNAME>ZDSTATUS1</DOMNAME>
+     <VALPOS>0005</VALPOS>
+     <DDLANGUAGE>D</DDLANGUAGE>
+     <DOMVALUE_L>SO</DOMVALUE_L>
+     <DDTEXT>Stornierung, Bestellung nicht bezahlt</DDTEXT>
+    </DD07V>
+    <DD07V>
+     <DOMNAME>ZDSTATUS1</DOMNAME>
+     <VALPOS>0006</VALPOS>
+     <DDLANGUAGE>D</DDLANGUAGE>
+     <DOMVALUE_L>SB</DOMVALUE_L>
+     <DDTEXT>Stornierung, Bestellung bezahlt</DDTEXT>
+    </DD07V>
+    <DD07V>
+     <DOMNAME>ZDSTATUS1</DOMNAME>
+     <VALPOS>0007</VALPOS>
+     <DDLANGUAGE>D</DDLANGUAGE>
+     <DOMVALUE_L>SA</DOMVALUE_L>
+     <DDTEXT>Stornierung, Bestellung ausgeliefert</DDTEXT>
+    </DD07V>
+    <DD07V>
+     <DOMNAME>ZDSTATUS1</DOMNAME>
+     <VALPOS>0008</VALPOS>
+     <DDLANGUAGE>D</DDLANGUAGE>
+     <DOMVALUE_L>SN</DOMVALUE_L>
+     <DDTEXT>Stornierung, Bestellung neu</DDTEXT>
+    </DD07V>
    </DD07V_TAB>
   </asx:values>
  </asx:abap>
