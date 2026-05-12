@@ -49,6 +49,7 @@ annotate view ZC_CS1_ZIPCITY with
   @UI.selectionField: [ {
     position: 30 
   } ]
+  @UI.hidden: true
   CreatedBy;
   
   @UI.identification: [ {
@@ -60,6 +61,7 @@ annotate view ZC_CS1_ZIPCITY with
   @UI.selectionField: [ {
     position: 40 
   } ]
+  @UI.hidden: true
   CreatedAt;
   
   @UI.identification: [ {
@@ -71,6 +73,7 @@ annotate view ZC_CS1_ZIPCITY with
   @UI.selectionField: [ {
     position: 50 
   } ]
+  @UI.hidden: true
   LocalLastChangedBy;
   
   @UI.identification: [ {
@@ -82,6 +85,7 @@ annotate view ZC_CS1_ZIPCITY with
   @UI.selectionField: [ {
     position: 60 
   } ]
+  @UI.hidden: true
   LocalLastChangedAt;
   
   @UI.identification: [ {
@@ -93,6 +97,7 @@ annotate view ZC_CS1_ZIPCITY with
   @UI.selectionField: [ {
     position: 70 
   } ]
+  @UI.hidden: true
   LastChangedAt;
   
   @EndUserText.label: '_BaseEntity'

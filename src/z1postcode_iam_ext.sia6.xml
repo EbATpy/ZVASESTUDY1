@@ -32,19 +32,6 @@
         <STATUS>U</STATUS>
         <VALUES>
          <item>
-          <FIELD>Z1PLZ</FIELD>
-          <VALUE>22000-22200</VALUE>
-          <VALUES>
-           <item>
-            <UUID>ziLtAKAUH+GSkVCsIvG1ZQ==</UUID>
-            <LOW_VALUE>22000</LOW_VALUE>
-            <HIGH_VALUE>22200</HIGH_VALUE>
-           </item>
-          </VALUES>
-          <TEXT>Postleitzahl</TEXT>
-          <STATUS>U</STATUS>
-         </item>
-         <item>
           <FIELD>ACTVT</FIELD>
           <VALUE>03</VALUE>
           <VALUES>
@@ -56,6 +43,19 @@
           <TEXT>Aktivität</TEXT>
           <STATUS>U</STATUS>
           <IS_ACTVT>X</IS_ACTVT>
+         </item>
+         <item>
+          <FIELD>Z1PLZ</FIELD>
+          <VALUE>22000-22200</VALUE>
+          <VALUES>
+           <item>
+            <UUID>ziLtAKAUH+GSkVCsIvG1ZQ==</UUID>
+            <LOW_VALUE>22000</LOW_VALUE>
+            <HIGH_VALUE>22200</HIGH_VALUE>
+           </item>
+          </VALUES>
+          <TEXT>Postleitzahl</TEXT>
+          <STATUS>U</STATUS>
          </item>
         </VALUES>
        </item>

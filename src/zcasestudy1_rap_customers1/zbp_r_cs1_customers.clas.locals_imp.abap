@@ -486,9 +486,110 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD showstatistics.
-    " Platzhalter für zweite Action
-  ENDMETHOD.
+METHOD showstatistics.
+
+  " 1. DATEN BESCHAFFEN
+  READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
+    ENTITY customers
+      ALL FIELDS WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_customers)
+      FAILED failed
+      REPORTED reported.
+
+
+  " 2. DYNAMIK HOLEN (Customizing einmalig vor dem Loop lesen)
+  SELECT SINGLE FROM zcs1_statistic
+    FIELDS class_name, interface_name
+    "WHERE stat_id = 'DEFAULT' AND active = @abap_true
+    WHERE active = @abap_true
+    INTO @DATA(ls_stat).
+
+  IF sy-subrc <> 0 OR ls_stat-class_name IS INITIAL.
+    APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                  text     = 'Kein aktiver Eintrag in ZCS1_STATISTIC gefunden' ) )
+           TO reported-customers.
+    RETURN.
+  ENDIF.
+
+  " 3. VERARBEITUNG PRO KUNDE
+  LOOP AT lt_customers INTO DATA(ls_customer).
+
+    DATA: lv_max   TYPE zorder_total1,
+          lv_avg   TYPE zorder_total1,
+          lv_day   TYPE zorder_total1,
+          lv_gjahr TYPE gjahr VALUE '2026'.
+
+    TRY.
+        " A. Instanz erzeugen
+        DATA lo_object TYPE REF TO object.
+        CREATE OBJECT lo_object TYPE (ls_stat-class_name).
+
+        " B. Dynamischer Interface-Cast (Cloud-konform)
+        DATA lo_dyn_intf_ref TYPE REF TO data.
+        CREATE DATA lo_dyn_intf_ref TYPE REF TO (ls_stat-interface_name).
+        ASSIGN lo_dyn_intf_ref->* TO FIELD-SYMBOL(<lo_intf_ptr>).
+
+        <lo_intf_ptr> ?= lo_object. "" downcast
+
+        " Umweg über lo_stat_if, um CALL METHOD zu ermöglichen
+        DATA lo_stat_if TYPE REF TO object.
+        lo_stat_if = <lo_intf_ptr>.
+
+        " C. Methodenaufrufe mit Interface-Präfix
+        " Wir bauen den Namen: 'ZIF_STATISTICS1~AVERAGE_SALES'
+
+        DATA(lv_method_name) = |{ ls_stat-interface_name }~AVERAGE_SALES|.
+        CALL METHOD lo_stat_if->(lv_method_name)
+          EXPORTING iv_gjahr  = lv_gjahr
+                    iv_kunnr  = ls_customer-customerid
+          RECEIVING rv_avg    = lv_avg.
+
+        lv_method_name = |{ ls_stat-interface_name }~MAX_SALES|.
+        CALL METHOD lo_stat_if->(lv_method_name)
+          EXPORTING iv_kunnr  = ls_customer-customerid
+          RECEIVING rv_max    = lv_max.
+
+        lv_method_name = |{ ls_stat-interface_name }~DAY_SALES|.
+        CALL METHOD lo_stat_if->(lv_method_name)
+          EXPORTING iv_gjahr  = lv_gjahr
+          RECEIVING rv_day    = lv_day.
+
+
+        " 4. ERGEBNIS AN UI SENDEN
+        APPEND VALUE #( %tky = ls_customer-%tky
+                        %msg = new_message_with_text(
+                                 severity = if_abap_behv_message=>severity-success
+                                 text = |Max { lv_max DECIMALS = 2 } | &&
+                                        |Ø { lv_avg DECIMALS = 2 } Tag { lv_day DECIMALS = 2 } | ) )
+               TO reported-customers.
+
+      CATCH cx_sy_create_object_error INTO DATA(lx_create).
+        APPEND VALUE #( %tky = ls_customer-%tky
+                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text = |Instanz-Fehler: { lx_create->get_text( ) }| ) )
+               TO reported-customers.
+        APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
+
+      CATCH cx_sy_dyn_call_error INTO DATA(lx_call).
+        APPEND VALUE #( %tky = ls_customer-%tky
+                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text = |Methoden-Fehler: { lx_call->get_text( ) }| ) )
+               TO reported-customers.
+        APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
+
+      CATCH cx_root INTO DATA(lx_root).
+        APPEND VALUE #( %tky = ls_customer-%tky
+                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text = |Fehler: { lx_root->get_text( ) }| ) )
+               TO reported-customers.
+    ENDTRY.
+
+  ENDLOOP.
+
+  " Ergebnis für UI-Refresh
+  result = VALUE #( FOR cust IN lt_customers ( %tky = cust-%tky %param = cust ) ).
+
+ENDMETHOD.
 
 ENDCLASS.
 

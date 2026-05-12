@@ -3,7 +3,7 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOINTERF>
-    <CLSNAME>ZIF_STATISTICS1</CLSNAME>
+    <CLSNAME>ZIF_STATISTICS1_04</CLSNAME>
     <LANGU>D</LANGU>
     <DESCRIPT>T190 -&gt; Statistiken -&gt; Interface</DESCRIPT>
     <EXPOSURE>2</EXPOSURE>
@@ -12,19 +12,19 @@
    </VSEOINTERF>
    <DESCRIPTIONS>
     <SEOCOMPOTX>
-     <CLSNAME>ZIF_STATISTICS1</CLSNAME>
+     <CLSNAME>ZIF_STATISTICS1_04</CLSNAME>
      <CMPNAME>AVERAGE_SALES</CMPNAME>
      <LANGU>D</LANGU>
-     <DESCRIPT>Durchschnittlicher Umsatz Bestellungen im GJ pro Kunde</DESCRIPT>
+     <DESCRIPT>Durchschnittlicher Umsatz pro Bestellung</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
-     <CLSNAME>ZIF_STATISTICS1</CLSNAME>
+     <CLSNAME>ZIF_STATISTICS1_04</CLSNAME>
      <CMPNAME>DAY_SALES</CMPNAME>
      <LANGU>D</LANGU>
-     <DESCRIPT>Durchschnittlicher Umsatz pro Tag im GJ</DESCRIPT>
+     <DESCRIPT>Durchschnittlicher Umsatz pro Tag</DESCRIPT>
     </SEOCOMPOTX>
     <SEOCOMPOTX>
-     <CLSNAME>ZIF_STATISTICS1</CLSNAME>
+     <CLSNAME>ZIF_STATISTICS1_04</CLSNAME>
      <CMPNAME>MAX_SALES</CMPNAME>
      <LANGU>D</LANGU>
      <DESCRIPT>Maximaler Einzelumsatz pro Kunde</DESCRIPT>

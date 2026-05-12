@@ -46,7 +46,7 @@ CLASS zcl_cs1_insert_other_tables IMPLEMENTATION.
 *                          ).
     ENDIF.
 
-    IF abap_true = abap_true. "activiert
+    IF abap_true = abap_false. "activiert
 
       DELETE  FROM  zcs1_custorders.
 
@@ -79,5 +79,18 @@ CLASS zcl_cs1_insert_other_tables IMPLEMENTATION.
         ( client = '100' orderid = '000021' customerid = '000090' order_date = '20260429' order_total = '2200.00' discount = '1.00'  status = 'BB' ) " war 000019
       ) ).
     ENDIF.
+
+
+      IF abap_true = abap_true. "activiert
+        DELETE  FROM  zcs1_statistic.
+        INSERT zcs1_statistic FROM TABLE @( VALUE #(
+            ( client = '100' STAT_ID = 'DEFAULT' INTERFACE_NAME = 'ZIF_STATISTICS1' CLASS_NAME = 'ZCL_STATISTICS1' ACTIVE = 'X' )
+
+          ) ).
+
+      ENDIF.
+
+
+
   ENDMETHOD.
 ENDCLASS.
