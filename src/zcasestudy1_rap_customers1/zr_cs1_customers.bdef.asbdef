@@ -44,9 +44,9 @@ late numbering
 
   draft determine action Prepare
   {
-    validation validateEmail;
-    validation validatePhone;
-    validation validateFax;
+    //validation validateEmail;
+    //validation validatePhone;
+    //validation validateFax;
     validation validateCurrencyTarget;
     determination Determinate_getCity;
     //    determination updateOrdersOnCurrencyChange;

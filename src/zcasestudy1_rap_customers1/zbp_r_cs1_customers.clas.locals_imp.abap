@@ -373,12 +373,14 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
       ELSE.
         APPEND VALUE #( %msg = new_message_with_text(
                           severity = if_abap_behv_message=>severity-success
-                          text = |{ lines( lt_orders_to_update ) } Bestellungen für Kunde { lv_customerid } storniert| )
+                          text = |{ lines( lt_orders_to_update ) } Bestellungen Stioniert für Kunde { lv_customerid } | )
                       ) TO reported-customers.
       ENDIF.
     ENDLOOP.
 
     result = VALUE #( FOR key IN keys ( %cid = key-%cid ) ).
+
+
   ENDMETHOD.
 
 

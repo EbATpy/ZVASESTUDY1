@@ -199,24 +199,24 @@ METHOD refresh_service.
   IF sy-subrc = 0 AND mt_service IS NOT INITIAL.
     " Alles in einem Rutsch aus mt_service in Member-Variablen mappen
     " Annahme: get_service_data liest aus mt_service, nicht nochmal DB
-    mt_is_email_valid_regex      = get_service_data( iv_name = 'EMAIL_REGEX' ).
-    mt_is_tel_valid_lv_clean     = get_service_data( iv_name = 'TEL_CLEAN_REGEX' ).
-    mt_is_tel_valid_lv_regex_1   = get_service_data( iv_name = 'TEL_REGEX_1' ).
-    mt_is_tel_valid_lv_regex_2   = get_service_data( iv_name = 'TEL_REGEX_2' ).
-    mt_split_csv_line_sep        = get_service_data( iv_name = 'CSV_SEPARATOR' ).
-    mt_split_csv_line_replace1   = get_service_data( iv_name = 'CSV_REPLACE_1' ).
-    mt_split_csv_line_replace2   = get_service_data( iv_name = 'CSV_REPLACE_2' ).
-    mt_split_csv_line_replace3   = get_service_data( iv_name = 'CSV_REPLACE_3' ).
-    mt_parse_customers_replace1  = get_service_data( iv_name = 'CUST_REPLACE_1' ).
-    mt_parse_customers_replace2  = get_service_data( iv_name = 'CUST_REPLACE_2' ).
-    mt_import_customers_webpass  = get_service_data( iv_name = 'DEFAULT_WEBPASS' ).
-    mt_import_customers_acc_lock = get_service_data( iv_name = 'DEFAULT_ACC_LOCK' ).
-    mt_import_customers_language = get_service_data( iv_name = 'DEFAULT_LANG' ).
-    mt_import_customers_country  = get_service_data( iv_name = 'DEFAULT_COUNTRY' ).
-    mt_import_customers_curr     = get_service_data( iv_name = 'DEFAULT_CURR' ).
-    mt_import_customers_curr_t   = get_service_data( iv_name = 'DEFAULT_CURR_T' ).
-    mt_statistics1_land          = get_service_data( iv_name = 'STAT_LAND' ).
-    mt_statistics1_lv_gjahr      = get_service_data( iv_name = 'STAT_GJAHR' ).
+    mt_is_email_valid_regex      = get_service_data( iv_name = 'mt_is_email_valid_regex' ).
+    mt_is_tel_valid_lv_clean     = get_service_data( iv_name = 'mt_is_tel_valid_lv_clean' ).
+    mt_is_tel_valid_lv_regex_1   = get_service_data( iv_name = 'mt_is_tel_valid_lv_regex_1' ).
+    mt_is_tel_valid_lv_regex_2   = get_service_data( iv_name = 'mt_is_tel_valid_lv_regex_2' ).
+    mt_split_csv_line_sep        = get_service_data( iv_name = 'mt_split_csv_line_sep' ).
+    mt_split_csv_line_replace1   = get_service_data( iv_name = 'mt_split_csv_line_replace1' ).
+    mt_split_csv_line_replace2   = get_service_data( iv_name = 'mt_split_csv_line_replace2' ).
+    mt_split_csv_line_replace3   = get_service_data( iv_name = 'mt_split_csv_line_replace3' ).
+    mt_parse_customers_replace1  = get_service_data( iv_name = 'mt_parse_customers_replace1' ).
+    mt_parse_customers_replace2  = get_service_data( iv_name = 'mt_parse_customers_replace2' ).
+    mt_import_customers_webpass  = get_service_data( iv_name = 'mt_import_customers_webpass' ).
+    mt_import_customers_acc_lock = get_service_data( iv_name = 'mt_import_customers_acc_lock' ).
+    mt_import_customers_language = get_service_data( iv_name = 'mt_import_customers_language' ).
+    mt_import_customers_country  = get_service_data( iv_name = 'mt_import_customers_country' ).
+    mt_import_customers_curr     = get_service_data( iv_name = 'mt_import_customers_curr' ).
+    mt_import_customers_curr_t   = get_service_data( iv_name = 'mt_import_customers_curr_t' ).
+    mt_statistics1_land          = get_service_data( iv_name = 'mt_statistics1_land' ).
+    mt_statistics1_lv_gjahr      = get_service_data( iv_name = 'mt_statistics1_lv_gjahr' ).
 
   ELSE.
     " 2. Fallback: Hardcoded Defaults wenn Tabelle leer oder nicht gepflegt

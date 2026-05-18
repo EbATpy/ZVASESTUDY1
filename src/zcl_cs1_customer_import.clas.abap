@@ -128,10 +128,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
     " Interface-Methode: Prüft E-Mail über Regex aus Config
     " Lazy-Loading: Lädt Config nur wenn noch nicht geladen
     " -----------------------------------------------------------------
-    IF lcl_customer_import=>mt_is_email_valid_regex IS INITIAL.
-      lcl_customer_import=>refresh_service( ).
-    ENDIF.
-
+    lcl_customer_import=>refresh_service( ).
     rv_valid = lcl_customer_import=>is_email_valid( iv_email = CONV string( iv_email ) ).
   ENDMETHOD.
 
@@ -140,10 +137,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
     " -----------------------------------------------------------------
     " Interface-Methode: Prüft Telefon über Regex aus Config
     " -----------------------------------------------------------------
-    IF lcl_customer_import=>mt_is_tel_valid_lv_clean IS INITIAL.
-      lcl_customer_import=>refresh_service( ).
-    ENDIF.
-
+    lcl_customer_import=>refresh_service( ).
     rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_phone ) ).
   ENDMETHOD.
 
@@ -153,10 +147,7 @@ CLASS zcl_cs1_customer_import IMPLEMENTATION.
     " Interface-Methode: Prüft Fax über Regex aus Config
     " Nutzt gleiche Regex wie Telefon
     " -----------------------------------------------------------------
-    IF lcl_customer_import=>mt_is_tel_valid_lv_clean IS INITIAL.
-      lcl_customer_import=>refresh_service( ).
-    ENDIF.
-
+    lcl_customer_import=>refresh_service( ).
     rv_valid = lcl_customer_import=>is_fax_valid( iv_tel = CONV string( iv_fax ) ).
   ENDMETHOD.
 

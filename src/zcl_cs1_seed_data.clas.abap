@@ -149,18 +149,18 @@ CLASS zcl_cs1_seed_data IMPLEMENTATION.
       ( client = gc_client orderid = '000007' customerid = '000001' order_date = gc_date order_total = '2800.00' discount = '1.00' status = 'BB' created_by = gc_user )
       ( client = gc_client orderid = '000008' customerid = '000001' order_date = gc_date order_total = '4200.00' discount = '1.00' status = 'BN' created_by = gc_user )
       ( client = gc_client orderid = '000009' customerid = '000001' order_date = gc_date order_total = '2800.00' discount = '1.00' status = 'BO' created_by = gc_user )
-      ( client = gc_client orderid = '000010' customerid = '000020' order_date = gc_date order_total = '7100.00' discount = '3.00' status = 'BO' created_by = gc_user )
-      ( client = gc_client orderid = '000011' customerid = '000022' order_date = gc_date order_total = '1500.00' discount = '1.00' status = 'BN' created_by = gc_user )
-      ( client = gc_client orderid = '000012' customerid = '000022' order_date = gc_date order_total = '2300.00' discount = '2.00' status = 'BA' created_by = gc_user )
-      ( client = gc_client orderid = '000013' customerid = '000030' order_date = gc_date order_total = '999.00'  discount = '1.00' status = 'BA' created_by = gc_user )
-      ( client = gc_client orderid = '000014' customerid = '000033' order_date = gc_date order_total = '4500.00' discount = '2.00' status = 'BO' created_by = gc_user )
-      ( client = gc_client orderid = '000015' customerid = '000033' order_date = gc_date order_total = '1200.00' discount = '1.00' status = 'BA' created_by = gc_user )
-      ( client = gc_client orderid = '000016' customerid = '000035' order_date = gc_date order_total = '6200.00' discount = '3.00' status = 'BA' created_by = gc_user )
-      ( client = gc_client orderid = '000017' customerid = '000036' order_date = gc_date order_total = '3100.00' discount = '1.00' status = 'BA' created_by = gc_user )
-      ( client = gc_client orderid = '000018' customerid = '000047' order_date = gc_date order_total = '8000.00' discount = '4.00' status = 'BN' created_by = gc_user )
-      ( client = gc_client orderid = '000019' customerid = '000064' order_date = gc_date order_total = '1750.00' discount = '1.00' status = 'BO' created_by = gc_user )
-      ( client = gc_client orderid = '000020' customerid = '000090' order_date = gc_date order_total = '5000.00' discount = '2.00' status = 'BN' created_by = gc_user )
-      ( client = gc_client orderid = '000021' customerid = '000090' order_date = gc_date order_total = '2200.00' discount = '1.00' status = 'BB' created_by = gc_user ) ) ).
+      ( client = gc_client orderid = '000010' customerid = '000002' order_date = gc_date order_total = '7100.00' discount = '3.00' status = 'BO' created_by = gc_user )
+      ( client = gc_client orderid = '000011' customerid = '000007' order_date = gc_date order_total = '1500.00' discount = '1.00' status = 'BN' created_by = gc_user )
+      ( client = gc_client orderid = '000012' customerid = '000007' order_date = gc_date order_total = '2300.00' discount = '2.00' status = 'BA' created_by = gc_user )
+      ( client = gc_client orderid = '000013' customerid = '000010' order_date = gc_date order_total = '999.00'  discount = '1.00' status = 'BA' created_by = gc_user )
+      ( client = gc_client orderid = '000014' customerid = '000019' order_date = gc_date order_total = '4500.00' discount = '2.00' status = 'BO' created_by = gc_user )
+      ( client = gc_client orderid = '000015' customerid = '000019' order_date = gc_date order_total = '1200.00' discount = '1.00' status = 'BA' created_by = gc_user )
+      ( client = gc_client orderid = '000016' customerid = '000020' order_date = gc_date order_total = '6200.00' discount = '3.00' status = 'BA' created_by = gc_user )
+      ( client = gc_client orderid = '000017' customerid = '000022' order_date = gc_date order_total = '3100.00' discount = '1.00' status = 'BA' created_by = gc_user )
+      ( client = gc_client orderid = '000018' customerid = '000030' order_date = gc_date order_total = '8000.00' discount = '4.00' status = 'BN' created_by = gc_user )
+      ( client = gc_client orderid = '000019' customerid = '000033' order_date = gc_date order_total = '1750.00' discount = '1.00' status = 'BO' created_by = gc_user )
+      ( client = gc_client orderid = '000020' customerid = '000034' order_date = gc_date order_total = '5000.00' discount = '2.00' status = 'BN' created_by = gc_user )
+      ( client = gc_client orderid = '000021' customerid = '000034' order_date = gc_date order_total = '2200.00' discount = '1.00' status = 'BB' created_by = gc_user ) ) ).
 
     iv_out->write( |Orders eingefügt: { sy-dbcnt }| ).
   ENDMETHOD.
