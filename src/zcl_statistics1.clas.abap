@@ -4,7 +4,17 @@ CLASS zcl_statistics1 DEFINITION PUBLIC FINAL CREATE PUBLIC.
     INTERFACES if_oo_adt_classrun.
 ENDCLASS.
 
-CLASS zcl_statistics1 IMPLEMENTATION.
+
+
+CLASS ZCL_STATISTICS1 IMPLEMENTATION.
+
+
+  METHOD if_oo_adt_classrun~main.
+
+
+
+  ENDMETHOD.
+
 
   METHOD zif_statistics1~average_sales.
     DATA(lv_date_from) = |{ iv_gjahr }0101|.
@@ -17,12 +27,6 @@ CLASS zcl_statistics1 IMPLEMENTATION.
       INTO @rv_avg.
   ENDMETHOD.
 
-  METHOD zif_statistics1~max_sales.
-    SELECT MAX( order_total )
-      FROM zcs1_custorders
-      WHERE customerid = @iv_kunnr
-      INTO @rv_max.
-  ENDMETHOD.
 
   METHOD zif_statistics1~day_sales.
     DATA: lv_gjahr_string TYPE zid_value1,
@@ -33,23 +37,31 @@ CLASS zcl_statistics1 IMPLEMENTATION.
 
     " Alle Spalten (*) auslesen, wo die ID übereinstimmt
 
-    SELECT SINGLE id_value, active
-      FROM zcs1_service
-      WHERE id = 'DefaultJahrStatistik'
-      INTO @DATA(ls_service).
+
+
+    DATA(lo_import) = NEW zcl_cs1_customer_import_03_01( ).
+
+
+
+   " SELECT SINGLE id_value, active
+   "   FROM zcs1_service
+   "   WHERE id = 'DefaultJahrStatistik'
+    "  INTO @DATA(ls_service).
 
     DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
-    lv_gjahr = COND #( WHEN ls_service-id_value IS NOT INITIAL
-                             THEN ls_service-id_value
-                             ELSE cl_abap_context_info=>get_system_date( ) ).
+    lv_gjahr = '2026'.   "COND #( WHEN ls_service-id_value IS NOT INITIAL
+                            " THEN ls_service-id_value
+                            " ELSE cl_abap_context_info=>get_system_date( ) ).
 
     DATA lv_land TYPE land1.
 
-    IF ls_service-active = abap_false.
-      lv_land = 'US'.
-    ELSE.
-      lv_land = 'DE'.
-    ENDIF.
+    "IF ls_service-active = abap_false.
+    "  lv_land = 'US'.
+    "ELSE.
+    "  lv_land = 'DE'.
+    "ENDIF.
+
+    lv_land = 'DE'.
 
 
     " 3. Entscheidung der Geschäftsjahresvariante
@@ -99,10 +111,11 @@ CLASS zcl_statistics1 IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD if_oo_adt_classrun~main.
 
-
-
+  METHOD zif_statistics1~max_sales.
+    SELECT MAX( order_total )
+      FROM zcs1_custorders
+      WHERE customerid = @iv_kunnr
+      INTO @rv_max.
   ENDMETHOD.
-
 ENDCLASS.

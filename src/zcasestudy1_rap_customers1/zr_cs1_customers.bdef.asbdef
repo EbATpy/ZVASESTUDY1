@@ -31,8 +31,6 @@ late numbering
 }
 
   create;
-  // Das hier hinzufügen, damit beim JPY i.V.m. Nachkommastellen in SalesVolumeTarget keine Fehler auseworfen wird
-// update ( precheck );
   update;
   delete;
 
@@ -53,7 +51,7 @@ late numbering
     validation validateCurrencyTarget;
     determination Determinate_getCity;
     //    determination updateOrdersOnCurrencyChange;
-//    determination SalesVolume;
+    determination SalesVolume;
     determination setDefaults;
   }
   validation validateEmail on save { field Email; }
@@ -61,11 +59,10 @@ late numbering
   validation validateFax on save { field Fax; }
   validation validateCurrencyTarget on save { create; update; field CurrencyTarget; }
   // validation validateVip on save { field zzvip_zem; }
-  determination Determinate_getCity on save { field Postcode; }
+  determination Determinate_getCity on save {  create; update; field Postcode; }
   //  determination setDefaultCurrencyTarget on modify { create; }
   //  determination updateOrdersOnCurrencyChange on save { field CurrencyTarget; }
-  determination SalesVolume on modify { field SalesVolume, Currency, CurrencyTarget; }
-//    determination SalesVolume on modify { field CurrencyTarget; }
+  determination SalesVolume on save {  create; update; field SalesVolume, Currency, CurrencyTarget; }
   determination trimEmail on modify { field Email; }
   determination setDefaults on save { create; } //field Language;
 

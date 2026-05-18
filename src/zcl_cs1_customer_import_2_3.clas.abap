@@ -17,20 +17,26 @@ CLASS zcl_cs1_customer_import_2_3 DEFINITION
 
 ENDCLASS.
 
-CLASS zcl_cs1_customer_import_2_3 IMPLEMENTATION.
+
+
+CLASS ZCL_CS1_CUSTOMER_IMPORT_2_3 IMPLEMENTATION.
+
 
   METHOD if_oo_adt_classrun~main.
     main_programm( io_out = out ).
   ENDMETHOD.
 
+
   METHOD if_apj_rt_exec_object~execute.
     main_programm(  ).
   ENDMETHOD.
+
 
   METHOD if_apj_dt_exec_object~get_parameters.
     CLEAR et_parameter_def.
     CLEAR et_parameter_val.
   ENDMETHOD.
+
 
   METHOD main_programm.
 *    "" Datenbanktabelle deleten
@@ -93,5 +99,4 @@ CLASS zcl_cs1_customer_import_2_3 IMPLEMENTATION.
     ENDTRY.
 *    out->write( lt_customs ).
   ENDMETHOD.
-
 ENDCLASS.

@@ -18,20 +18,26 @@ CLASS zcl_cs1_customer_import_02 DEFINITION
 
 ENDCLASS.
 
-CLASS zcl_cs1_customer_import_02 IMPLEMENTATION.
+
+
+CLASS ZCL_CS1_CUSTOMER_IMPORT_02 IMPLEMENTATION.
+
 
   METHOD if_oo_adt_classrun~main.
     main_programm( io_out = out ).
   ENDMETHOD.
 
+
   METHOD if_apj_rt_exec_object~execute.
     main_programm(  ).
   ENDMETHOD.
+
 
   METHOD if_apj_dt_exec_object~get_parameters.
     CLEAR et_parameter_def.
     CLEAR et_parameter_val.
   ENDMETHOD.
+
 
   METHOD main_programm.
 *    "" Datenbanktabelle deleten
@@ -103,20 +109,23 @@ CLASS zcl_cs1_customer_import_02 IMPLEMENTATION.
 *    out->write( lt_customs ).
   ENDMETHOD.
 
+
   METHOD zif_cs1_validation~is_email_valid.
     rv_valid = lcl_customer_import=>is_email_valid( iv_email = CONV string( iv_email ) ).
   ENDMETHOD.
+
 
   METHOD zif_cs1_validation~is_phone_valid.
    rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_phone ) ).
   ENDMETHOD.
 
+
   METHOD zif_cs1_validation~is_fax_valid.
     rv_valid = lcl_customer_import=>is_tel_valid( iv_tel = CONV string( iv_fax ) ).
   ENDMETHOD.
 
+
   METHOD zif_cs1_validation~latenumbering.
 
   ENDMETHOD.
-
 ENDCLASS.

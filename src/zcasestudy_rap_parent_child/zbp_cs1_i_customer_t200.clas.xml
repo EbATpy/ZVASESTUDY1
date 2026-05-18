@@ -3,13 +3,15 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_CS1_SERVICE_IMPORT</CLSNAME>
+    <CLSNAME>ZBP_CS1_I_CUSTOMER_T200</CLSNAME>
     <LANGU>D</LANGU>
-    <DESCRIPT>T100 Import Parameters</DESCRIPT>
+    <DESCRIPT>Behavior Implementation for ZCS1_I_CUSTOMER_T200</DESCRIPT>
+    <CATEGORY>06</CATEGORY>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>
+    <CLSDEFINT>ZCS1_I_CUSTOMER_T200</CLSDEFINT>
    </VSEOCLASS>
   </asx:values>
  </asx:abap>

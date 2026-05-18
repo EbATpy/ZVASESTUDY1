@@ -7,7 +7,7 @@ CLASS lhc_zr_cs1_customers DEFINITION INHERITING FROM cl_abap_behavior_handler.
       validateFax            FOR VALIDATE  ON SAVE   IMPORTING keys FOR customers~validateFax,
       Determinate_getCity    FOR DETERMINE ON SAVE   IMPORTING keys FOR customers~Determinate_getCity,
       validateCurrencyTarget FOR VALIDATE  ON SAVE   IMPORTING keys FOR customers~validateCurrencyTarget,
-      SalesVolume            FOR DETERMINE ON MODIFY   IMPORTING keys FOR customers~SalesVolume,
+      SalesVolume            FOR DETERMINE ON SAVE   IMPORTING keys FOR customers~SalesVolume,
       setDefaults            FOR DETERMINE ON SAVE   IMPORTING keys FOR customers~setDefaults,
       trimEmail              FOR DETERMINE ON MODIFY IMPORTING keys FOR customers~trimEmail,
       CancelOrders           FOR MODIFY              IMPORTING keys
@@ -182,7 +182,7 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
     " 1. Daten der zu prüfenden Kunden einlesen
     READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
       ENTITY customers
-        FIELDS ( CurrencyTarget SalesVolumeTarget ) " SalesVolumeTarget mitlesen für den Check
+        FIELDS ( CurrencyTarget )
         WITH CORRESPONDING #( keys )
       RESULT DATA(lt_customers).
 
@@ -192,15 +192,15 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
     SORT lt_curr_filter BY CurrencyTarget.
     DELETE ADJACENT DUPLICATES FROM lt_curr_filter COMPARING CurrencyTarget.
 
-    " 3. Hashed Table für blitzschnellen Zugriff
+    " 3. Hashed Table gegen die Suchhilfe-View I_CurrencyStdVH
     TYPES: BEGIN OF ty_s_currency,
-             Currency TYPE I_Currency-Currency,
+             Currency TYPE I_CurrencyStdVH-Currency,
            END OF ty_s_currency.
     DATA lt_valid_currencies TYPE HASHED TABLE OF ty_s_currency WITH UNIQUE KEY Currency.
 
-    " 4. Einmaliger DB-Zugriff für alle Währungen
+    " 4. Einmaliger DB-Zugriff gegen die Suchhilfe
     IF lt_curr_filter IS NOT INITIAL.
-      SELECT Currency FROM I_Currency
+      SELECT Currency FROM I_CurrencyStdVH
         FOR ALL ENTRIES IN @lt_curr_filter
         WHERE Currency = @lt_curr_filter-CurrencyTarget
         INTO TABLE @lt_valid_currencies.
@@ -209,20 +209,12 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
     " 5. Validierungsschleife
     LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<ls_customer>).
 
-      " --- SPEZIAL-LOGIK FÜR JPY ---
-      " Wenn JPY gewählt wurde, ignorieren wir die Fehlermeldung bezüglich
-      " der Nachkommastellen bewusst, damit die Determination 'SalesVolume'
-      " den Wert im Hintergrund glattziehen kann.
-      IF <ls_customer>-CurrencyTarget = 'JPY' AND ( <ls_customer>-SalesVolumeTarget MOD 1 ) <> 0.
-        " Wir machen hier einfach NICHTS (kein APPEND to failed).
-        " Die Determination übernimmt die Korrektur.
-      ENDIF.
-
-      " --- NORMALE FEHLERPRÜFUNG ---
-
       " Check 1: Pflichtfeldprüfung
       IF <ls_customer>-CurrencyTarget IS INITIAL.
+        " failed stoppt den Speicherprozess (Save-Sequenz bricht ab)
         APPEND VALUE #( %tky = <ls_customer>-%tky ) TO failed-customers.
+
+        " reported steuert die Fehlermeldung und die rote Markierung am Feld (%element)
         APPEND VALUE #( %tky = <ls_customer>-%tky
                         %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
                                                       text     = 'Bitte wählen Sie eine Zielwährung aus.' )
@@ -230,13 +222,15 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
-      " Check 2: Existenzprüfung (z.B. gegen 'ZZZ')
-      " Diese Fehlermeldung soll weiterhin erscheinen!
+      " Check 2: Existenzprüfung gegen Suchhilfeeinträge (I_CurrencyStdVH)
       IF NOT line_exists( lt_valid_currencies[ Currency = <ls_customer>-CurrencyTarget ] ).
+        " failed stoppt den Speicherprozess (Save-Sequenz bricht ab)
         APPEND VALUE #( %tky = <ls_customer>-%tky ) TO failed-customers.
+
+        " reported steuert die Fehlermeldung und die rote Markierung am Feld (%element)
         APPEND VALUE #( %tky = <ls_customer>-%tky
                         %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
-                                                      text     = |Währung { <ls_customer>-CurrencyTarget } ist nicht zulässig!| )
+                                                      text     = |Währung { <ls_customer>-CurrencyTarget } entspricht keinem gültigen Suchhilfeeintrag!| )
                         %element-currencytarget = if_abap_behv=>mk-on ) TO reported-customers.
       ENDIF.
 
@@ -255,17 +249,22 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
 
     DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
 
-    " --- SCHRITT 2: DER LOOP ---
+    " Lokale Tabelle für das Massen-Update vorbereiten
+    DATA lt_customers_update TYPE TABLE FOR UPDATE zr_cs1_customers\\customers.
+
+    " --- SCHRITT 2: DER LOOP (BERECHNUNG & SAMMELN) ---
     LOOP AT lt_customers ASSIGNING FIELD-SYMBOL(<fs_customer>).
 
-      IF <fs_customer>-SalesVolume IS INITIAL OR <fs_customer>-CurrencyTarget IS INITIAL.
+      IF <fs_customer>-SalesVolume    IS INITIAL OR
+         <fs_customer>-Currency       IS INITIAL OR
+         <fs_customer>-CurrencyTarget IS INITIAL.
         CONTINUE.
       ENDIF.
 
-      " --- SCHRITT 3: UMRECHNUNG ---
       DATA lv_converted_amount TYPE zr_cs1_customers-SalesVolumeTarget.
 
       TRY.
+          " Währungsumrechnung durchführen
           cl_exchange_rates=>convert_to_foreign_currency(
             EXPORTING
               local_amount     = <fs_customer>-SalesVolume
@@ -276,29 +275,13 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
               foreign_amount   = lv_converted_amount
           ).
 
-          " Rundung für JPY
-          IF <fs_customer>-CurrencyTarget = 'JPY'.
-            lv_converted_amount = round( val = lv_converted_amount dec = 0 ).
-          ENDIF.
-
-          " --- SCHRITT 4: DIREKTER MODIFY PRO ZEILE ---
-          " Durch die Verwendung von <fs_customer>-%tky stellen wir sicher,
-          " dass exakt der Draft-Status (is_draft = '01') getroffen wird.
-          MODIFY ENTITIES OF zr_cs1_customers IN LOCAL MODE
-             ENTITY customers
-               UPDATE FIELDS ( SalesVolumeTarget )
-               WITH VALUE #( ( %tky              = <fs_customer>-%tky
-                               SalesVolumeTarget = lv_converted_amount
-                               %control-SalesVolumeTarget = if_abap_behv=>mk-on ) )
-             FAILED DATA(ls_loop_failed)
-             REPORTED DATA(ls_loop_reported).
-
-          " Fehler sammeln (Korrekt für REPORTED Strukturen)
-          IF ls_loop_reported-customers IS NOT INITIAL.
-            reported-customers = CORRESPONDING #( BASE ( reported-customers ) ls_loop_reported-customers ).
-          ENDIF.
+          " Datensatz für das Massen-Update am Ende der Methode sammeln
+          APPEND VALUE #( %tky              = <fs_customer>-%tky
+                          SalesVolumeTarget = lv_converted_amount
+                          %control-SalesVolumeTarget = if_abap_behv=>mk-on ) TO lt_customers_update.
 
         CATCH cx_exchange_rates INTO DATA(lx_rates).
+          " Fehlermeldung ausgeben, falls kein Umrechnungskurs vorhanden ist
           APPEND VALUE #( %tky = <fs_customer>-%tky
                           %msg = zcx_cs1_customer_failed=>new_message(
                                    i_textid   = zcx_cs1_customer_failed=>Umrechnungsfehler
@@ -308,6 +291,23 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
                         ) TO reported-customers.
       ENDTRY.
     ENDLOOP.
+
+    " --- SCHRITT 3: EINMALIGES MASSEN-UPDATE AUẞERHALB DES LOOPS ---
+    IF lt_customers_update IS NOT INITIAL.
+      MODIFY ENTITIES OF zr_cs1_customers IN LOCAL MODE
+         ENTITY customers
+           UPDATE FIELDS ( SalesVolumeTarget )
+           WITH lt_customers_update
+         FAILED DATA(ls_modify_failed)
+         REPORTED DATA(ls_modify_reported).
+
+      " Eventuelle Framework-Fehler des Updates (z.B. Sperren) im globalen reported-Objekt sammeln
+      IF ls_modify_reported-customers IS NOT INITIAL.
+        reported-customers = CORRESPONDING #( BASE ( reported-customers ) ls_modify_reported-customers ).
+      ENDIF.
+    ENDIF.
+
+    " --- SCHRITT 4: BUFFER REFRESH ---
     IF lt_customers IS NOT INITIAL.
       READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
         ENTITY customers
@@ -486,110 +486,300 @@ CLASS lhc_zr_cs1_customers IMPLEMENTATION.
 
   ENDMETHOD.
 
-METHOD showstatistics.
+  METHOD showstatistics.
 
-  " 1. DATEN BESCHAFFEN
-  READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
-    ENTITY customers
-      ALL FIELDS WITH CORRESPONDING #( keys )
-      RESULT DATA(lt_customers)
-      FAILED failed
-      REPORTED reported.
+    " =========================================================================
+    " 1. DATEN BESCHAFFEN
+    " =========================================================================
+    " Liest die ausgewählten Kundendaten aus der RAP-Entität (Fiori UI Auswahl)
+    READ ENTITIES OF zr_cs1_customers IN LOCAL MODE
+      ENTITY customers
+        ALL FIELDS WITH CORRESPONDING #( keys )
+        RESULT DATA(lt_customers)
+        FAILED failed
+        REPORTED reported.
 
 
-  " 2. DYNAMIK HOLEN (Customizing einmalig vor dem Loop lesen)
-  SELECT SINGLE FROM zcs1_statistic
-    FIELDS class_name, interface_name
-    "WHERE stat_id = 'DEFAULT' AND active = @abap_true
-    WHERE active = @abap_true
-    INTO @DATA(ls_stat).
+    " =========================================================================
+    " 2. DYNAMIK / CONFIGURATION HOLEN
+    " =========================================================================
+    " Holt die zugewiesene Berechnungs-Klasse und das Interface aus dem Customizing
+    SELECT SINGLE FROM zcs1_statistic
+      FIELDS class_name, interface_name
+      WHERE active = @abap_true
+      INTO @DATA(ls_stat).
 
-  IF sy-subrc <> 0 OR ls_stat-class_name IS INITIAL.
-    APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
-                                                  text     = 'Kein aktiver Eintrag in ZCS1_STATISTIC gefunden' ) )
-           TO reported-customers.
-    RETURN.
-  ENDIF.
+    " Abbruch, wenn kein aktiver Eintrag in der Steuertabelle konfiguriert ist
+    IF sy-subrc <> 0 OR ls_stat-class_name IS INITIAL.
+      APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                    text     = 'Kein aktiver Eintrag in ZCS1_STATISTIC gefunden' ) )
+             TO reported-customers.
+      RETURN.
+    ENDIF.
 
-  " 3. VERARBEITUNG PRO KUNDE
-  LOOP AT lt_customers INTO DATA(ls_customer).
 
-    DATA: lv_max   TYPE zorder_total1,
-          lv_avg   TYPE zorder_total1,
-          lv_day   TYPE zorder_total1,
-          lv_gjahr TYPE gjahr VALUE '2026'.
+    " =========================================================================
+    " --- CLOUD-GOVERNANCE: DYNAMISCHE TYP-PRÜFUNG VOR DEM LOOP ---
+    " =========================================================================
+    DATA lo_class_descr TYPE REF TO cl_abap_classdescr.
+    DATA lo_intf_descr  TYPE REF TO cl_abap_objectdescr.
+    DATA lo_typedescr_class TYPE REF TO cl_abap_typedescr.
+    DATA lo_typedescr_intf  TYPE REF TO cl_abap_typedescr.
 
+    " -------------------------------------------------------------------------
+    " A. Klassen-Prüfung (Verhindert den kritischen Kernel-Absturz TYPE_NOT_RELEASED)
+    " -------------------------------------------------------------------------
     TRY.
-        " A. Instanz erzeugen
-        DATA lo_object TYPE REF TO object.
-        CREATE OBJECT lo_object TYPE (ls_stat-class_name).
+        " Prüft über RTTS, ob das Objekt im System überhaupt bekannt ist
+        cl_abap_typedescr=>describe_by_name(
+          EXPORTING p_name         = ls_stat-class_name
+          RECEIVING p_descr_ref    = lo_typedescr_class
+          EXCEPTIONS type_not_found = 1 OTHERS         = 2
+        ).
 
-        " B. Dynamischer Interface-Cast (Cloud-konform)
-        DATA lo_dyn_intf_ref TYPE REF TO data.
-        CREATE DATA lo_dyn_intf_ref TYPE REF TO (ls_stat-interface_name).
-        ASSIGN lo_dyn_intf_ref->* TO FIELD-SYMBOL(<lo_intf_ptr>).
+        " Fall 1: Klasse physisch nicht im System vorhanden
+        IF sy-subrc = 1 OR lo_typedescr_class IS INITIAL.
+          APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text     = |Klasse { ls_stat-class_name } existiert nicht im System!| ) )
+                 TO reported-customers.
+          RETURN.
+        ENDIF.
 
-        <lo_intf_ptr> ?= lo_object. "" downcast
+        " Fall 2: Typ existiert im DDIC (z.B. Struktur), ist aber keine ABAP-Klasse
+        IF lo_typedescr_class->kind <> cl_abap_typedescr=>kind_class.
+          APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text     = |Typ-Konflikt: { ls_stat-class_name } ist vorhanden, aber keine Klasse.| ) )
+                 TO reported-customers.
+          RETURN.
+        ENDIF.
 
-        " Umweg über lo_stat_if, um CALL METHOD zu ermöglichen
-        DATA lo_stat_if TYPE REF TO object.
-        lo_stat_if = <lo_intf_ptr>.
+        " Sicherer Cast auf die Klasseneigenschaften
+        lo_class_descr = CAST cl_abap_classdescr( lo_typedescr_class ).
 
-        " C. Methodenaufrufe mit Interface-Präfix
-        " Wir bauen den Namen: 'ZIF_STATISTICS1~AVERAGE_SALES'
+        " Fall 3: Klasse ist geschützt (PROTECTED/PRIVATE) und kann nicht von außen instantiiert werden
+        IF lo_class_descr->create_visibility <> cl_abap_classdescr=>public.
+          APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text     = |Klasse { ls_stat-class_name } ist nicht öffentlich instanziierbar.| ) )
+                 TO reported-customers.
+          RETURN.
+        ENDIF.
 
-        DATA(lv_method_name) = |{ ls_stat-interface_name }~AVERAGE_SALES|.
-        CALL METHOD lo_stat_if->(lv_method_name)
-          EXPORTING iv_gjahr  = lv_gjahr
-                    iv_kunnr  = ls_customer-customerid
-          RECEIVING rv_avg    = lv_avg.
-
-        lv_method_name = |{ ls_stat-interface_name }~MAX_SALES|.
-        CALL METHOD lo_stat_if->(lv_method_name)
-          EXPORTING iv_kunnr  = ls_customer-customerid
-          RECEIVING rv_max    = lv_max.
-
-        lv_method_name = |{ ls_stat-interface_name }~DAY_SALES|.
-        CALL METHOD lo_stat_if->(lv_method_name)
-          EXPORTING iv_gjahr  = lv_gjahr
-          RECEIVING rv_day    = lv_day.
-
-
-        " 4. ERGEBNIS AN UI SENDEN
-        APPEND VALUE #( %tky = ls_customer-%tky
-                        %msg = new_message_with_text(
-                                 severity = if_abap_behv_message=>severity-success
-                                 text = |Max { lv_max DECIMALS = 2 } | &&
-                                        |Ø { lv_avg DECIMALS = 2 } Tag { lv_day DECIMALS = 2 } | ) )
+      CATCH cx_sy_move_cast_error.
+        APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text     = |Der Typ { ls_stat-class_name } konnte nicht verarbeitet werden.| ) )
                TO reported-customers.
-
-      CATCH cx_sy_create_object_error INTO DATA(lx_create).
-        APPEND VALUE #( %tky = ls_customer-%tky
-                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
-                                                      text = |Instanz-Fehler: { lx_create->get_text( ) }| ) )
+        RETURN.
+      CATCH cx_root.
+        " Sichert ABAP Cloud ab: Greift bei nicht freigegebenen Objekten (z.B. SAP-Standardklassen ohne API-Zulassung)
+        APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text = |Klasse { ls_stat-class_name } nicht freigegeben (Cloud API)| ) )
                TO reported-customers.
-        APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
-
-      CATCH cx_sy_dyn_call_error INTO DATA(lx_call).
-        APPEND VALUE #( %tky = ls_customer-%tky
-                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
-                                                      text = |Methoden-Fehler: { lx_call->get_text( ) }| ) )
-               TO reported-customers.
-        APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
-
-      CATCH cx_root INTO DATA(lx_root).
-        APPEND VALUE #( %tky = ls_customer-%tky
-                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
-                                                      text = |Fehler: { lx_root->get_text( ) }| ) )
-               TO reported-customers.
+        RETURN.
     ENDTRY.
 
-  ENDLOOP.
 
-  " Ergebnis für UI-Refresh
-  result = VALUE #( FOR cust IN lt_customers ( %tky = cust-%tky %param = cust ) ).
+    " -------------------------------------------------------------------------
+    " B. Interface-Prüfung (Analog zur Klassen-Prüfung)
+    " -------------------------------------------------------------------------
+    TRY.
+        cl_abap_typedescr=>describe_by_name(
+          EXPORTING p_name         = ls_stat-interface_name
+          RECEIVING p_descr_ref    = lo_typedescr_intf
+          EXCEPTIONS type_not_found = 1 OTHERS         = 2
+        ).
 
-ENDMETHOD.
+        " Fall 1: Interface existiert nicht
+        IF sy-subrc = 1 OR lo_typedescr_intf IS INITIAL.
+          APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text     = |Interface { ls_stat-interface_name } existiert nicht im System!| ) )
+                 TO reported-customers.
+          RETURN.
+        ENDIF.
+
+        " Fall 2: Der Name gehört zu einer Klasse/Struktur, nicht zu einem Interface
+        IF lo_typedescr_intf->kind <> cl_abap_typedescr=>kind_intf.
+          APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text     = |Typ-Konflikt: { ls_stat-interface_name } ist vorhanden, aber kein Interface.| ) )
+                 TO reported-customers.
+          RETURN.
+        ENDIF.
+
+        lo_intf_descr = CAST cl_abap_objectdescr( lo_typedescr_intf ).
+
+      CATCH cx_sy_move_cast_error.
+        APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text     = |Der Typ { ls_stat-interface_name } konnte nicht verarbeitet werden.| ) )
+               TO reported-customers.
+        RETURN.
+      CATCH cx_root.
+        " Das Interface ist im System gesperrt
+        APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text     = |Interface { ls_stat-interface_name } ist für ABAP Cloud gesperrt.| ) )
+               TO reported-customers.
+        RETURN.
+    ENDTRY.
+
+
+    " -------------------------------------------------------------------------
+    " C. Methoden im Interface prüfen
+    " -------------------------------------------------------------------------
+    " Definiert die Pflichtmethoden, die zwingend vorhanden sein müssen
+    DATA(lt_required_methods) = VALUE string_table( ( `AVERAGE_SALES` ) ( `MAX_SALES` ) ( `DAY_SALES` ) ).
+
+    LOOP AT lt_required_methods INTO DATA(lv_check_method).
+      " Im System wird die Methode in der Klasse als 'INTERFACE~METHODE' registriert
+      DATA(lv_class_method_fullname) = |{ ls_stat-interface_name }~{ lv_check_method }|.
+
+      " Prüfen, ob die Methode in der Klasse existiert
+      READ TABLE lo_class_descr->methods WITH KEY name = to_upper( lv_class_method_fullname ) TRANSPORTING NO FIELDS.
+
+      IF sy-subrc <> 0.
+        " Fehler exakt benennen: Interface ist zwar da, aber die Methode fehlt in dieser Klasse
+        APPEND VALUE #( %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text     = |{ ls_stat-class_name }: Methode { lv_check_method } fehlt!| ) )
+               TO reported-customers.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+
+    " -------------------------------------------------------------------------
+    " D. RTTS: Referenztyp für Cloud-konforme Pointer vorbereiten
+    " -------------------------------------------------------------------------
+    " Da 'CREATE DATA ... TYPE REF TO (variable_interface)' in Cloud verboten ist,
+    " generieren wir hier den Referenztyp dynamisch über ein RTTS-Metadaten-Handle.
+    DATA(lo_ref_descr) = cl_abap_refdescr=>create( lo_intf_descr ).
+
+
+    " =========================================================================
+    " 3. VERARBEITUNG PRO KUNDE (Hauptschleife)
+    " =========================================================================
+    LOOP AT lt_customers INTO DATA(ls_customer).
+
+      " Lokale Ergebnisspeicher für den aktuellen Kundendurchlauf
+      DATA: lv_max   TYPE zorder_total1,
+            lv_avg   TYPE zorder_total1,
+            lv_day   TYPE zorder_total1,
+            lv_gjahr TYPE gjahr VALUE '2026'.
+
+      TRY.
+          " Instanziiert die Customizing-Klasse dynamisch zur Laufzeit
+          DATA lo_object TYPE REF TO object.
+          CREATE OBJECT lo_object TYPE (ls_stat-class_name).
+
+          " ---------------------------------------------------------------------
+          " Prüfung: Implementiert die gewählte Klasse das Interface?
+          " ---------------------------------------------------------------------
+          DATA(lv_interface_implemented) = abap_false.
+
+          " Durchläuft die Liste aller von der Klasse implementierten Schnittstellen
+          LOOP AT lo_class_descr->interfaces INTO DATA(ls_implemented_interface).
+            IF ls_implemented_interface-name = ls_stat-interface_name.
+              lv_interface_implemented = abap_true.
+              EXIT.
+            ENDIF.
+          ENDLOOP.
+
+          " Fall: Klasse und Interface passen im Customizing nicht zusammen
+          IF lv_interface_implemented = abap_false.
+            APPEND VALUE #( %tky = ls_customer-%tky
+                            %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                          text = |Konfigurationsfehler: Die Klasse { ls_stat-class_name } implementiert das Interface { ls_stat-interface_name } nicht!| ) )
+                   TO reported-customers.
+            APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
+            CONTINUE. " Überspringt diesen Kunden und läuft weiter
+          ENDIF.
+
+          " ---------------------------------------------------------------------
+          " Cloud-konformer Pointer-Zuweisung (Downcast)
+          " ---------------------------------------------------------------------
+          " Erzeugt die Datenreferenz basierend auf dem vorab erstellten Interface-Typ-Handle
+          DATA lo_dyn_intf_ref TYPE REF TO data.
+          CREATE DATA lo_dyn_intf_ref TYPE HANDLE lo_ref_descr.
+
+          " Entreferenziert den Daten-Pointer in ein Feldsymbol (Typ: REF TO [Interface])
+          ASSIGN lo_dyn_intf_ref->* TO FIELD-SYMBOL(<lo_intf_ptr>).
+
+          " Castet die generische Objektinstanz auf die Interface-Variable
+          <lo_intf_ptr> ?= lo_object.
+
+          " Weist das typisierte Feldsymbol der ausführbaren Objektreferenz zu
+          DATA lo_stat_if TYPE REF TO object.
+          lo_stat_if = <lo_intf_ptr>.
+
+          " ---------------------------------------------------------------------
+          " DYNAMISCHE METHODENAUFRUFE
+          " ---------------------------------------------------------------------
+          " Aufruf 1: Durchschnittlicher Umsatz
+          DATA(lv_method_name) = |{ ls_stat-interface_name }~AVERAGE_SALES|.
+          CALL METHOD lo_stat_if->(lv_method_name)
+            EXPORTING
+              iv_gjahr = lv_gjahr
+              iv_kunnr = ls_customer-customerid
+            RECEIVING
+              rv_avg   = lv_avg.
+
+          " Aufruf 2: Maximaler Umsatz
+          lv_method_name = |{ ls_stat-interface_name }~MAX_SALES|.
+          CALL METHOD lo_stat_if->(lv_method_name)
+            EXPORTING
+              iv_kunnr = ls_customer-customerid
+            RECEIVING
+              rv_max   = lv_max.
+
+          " Aufruf 3: Tagesumsatz
+          lv_method_name = |{ ls_stat-interface_name }~DAY_SALES|.
+          CALL METHOD lo_stat_if->(lv_method_name)
+            EXPORTING
+              iv_gjahr = lv_gjahr
+            RECEIVING
+              rv_day   = lv_day.
+
+          " =========================================================================
+          " 4. ERGEBNIS AN FIORI UI SENDEN (Erfolgsfall)
+          " =========================================================================
+          " Schreibt die berechneten Werte als formatierte Erfolgsmeldung an die UI-Zeile
+          APPEND VALUE #( %tky = ls_customer-%tky
+                          %msg = new_message_with_text(
+                                   severity = if_abap_behv_message=>severity-success
+                                   text = |Max { lv_max DECIMALS = 2 } | &&
+
+                                          |Ø { lv_avg DECIMALS = 2 } Tag { lv_day DECIMALS = 2 } | ) )
+                 TO reported-customers.
+
+          " -------------------------------------------------------------------------
+          " LAUFZEIT-FEHLERBEHANDLUNG IM LOOP
+          " -------------------------------------------------------------------------
+        CATCH cx_sy_create_object_error INTO DATA(lx_create).
+          " Fängt Fehler ab, wenn die Instanziierung der Klasse fehlschlägt (z.B. im Constructor)
+          APPEND VALUE #( %tky = ls_customer-%tky
+                          %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text = |Instanz-Fehler: { lx_create->get_text( ) }| ) )
+                 TO reported-customers.
+          APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
+
+        CATCH cx_sy_dyn_call_error INTO DATA(lx_call).
+          " Fängt Abweichungen bei den Parametern ab (z.B. wenn sich ein Typ im Interface geändert hat)
+          APPEND VALUE #( %tky = ls_customer-%tky
+                          %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                        text = |{ ls_stat-class_name }: Methode { lv_check_method } fehlt!| ) )
+                 TO reported-customers.
+          APPEND VALUE #( %tky = ls_customer-%tky ) TO failed-customers.
+      ENDTRY.
+
+    ENDLOOP.
+
+    " =========================================================================
+    " 5. UI-REFRESH TRIGGERN
+    " =========================================================================
+    " Zwingend erforderlich für RAP Actions: Meldet dem Fiori Elements Frontend,
+    " welche Tabellenzeilen sich geändert haben und neu geladen werden müssen.
+    result = VALUE #( FOR cust IN lt_customers ( %tky = cust-%tky %param = cust ) ).
+
+
+
+
+  ENDMETHOD.
 
 ENDCLASS.
 

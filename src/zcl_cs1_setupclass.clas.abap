@@ -17,14 +17,16 @@ ENDCLASS.
 
 
 
-CLASS zcl_cs1_setupclass IMPLEMENTATION.
+CLASS ZCL_CS1_SETUPCLASS IMPLEMENTATION.
+
+
   METHOD init_setup.
     ro_setup = NEW lcl_setup_handler( ).
   ENDMETHOD.
+
 
   METHOD if_oo_adt_classrun~main.
     " Hier startest du den Prozess
     init_setup( )->run_setup( out ).
   ENDMETHOD.
-
 ENDCLASS.

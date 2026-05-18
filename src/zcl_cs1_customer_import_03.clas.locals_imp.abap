@@ -2,6 +2,8 @@ CLASS lcl_customer_import DEFINITION.
 
   PUBLIC SECTION.
 
+    METHODS constructor.
+
     TYPES: BEGIN OF ty_import,
              company  TYPE string,
              street   TYPE string,
@@ -45,8 +47,7 @@ CLASS lcl_customer_import DEFINITION.
     METHODS parse_csv.
     METHODS parse_customers.
 
-    METHODS return_table
-      RETURNING VALUE(rv_table) TYPE tt_output.
+    METHODS return_table RETURNING VALUE(rv_table) TYPE tt_output.
 
     CLASS-METHODS is_email_valid
       IMPORTING iv_email        TYPE string
@@ -60,7 +61,9 @@ CLASS lcl_customer_import DEFINITION.
       IMPORTING iv_tel          TYPE string
       RETURNING VALUE(rv_valid) TYPE abap_bool.
 
-*###################### Anfang Gruppe 04 #########################################################################
+    CLASS-METHODS delete_import_err.
+
+*###################### get_next_customer_id #########################################################################
     CLASS-METHODS get_next_customer_id
       RETURNING
         VALUE(rv_customerid) TYPE zcustomerid1
@@ -73,8 +76,7 @@ CLASS lcl_customer_import DEFINITION.
       RAISING
         cx_number_ranges.
 
-    METHODS import_customers
-      RAISING zcx_cs1_customer_failed.
+    METHODS import_customers RAISING zcx_cs1_customer_failed.
 
     TYPES: BEGIN OF ty_errors,
              customers_id TYPE string,
@@ -87,45 +89,88 @@ CLASS lcl_customer_import DEFINITION.
            tt_errors TYPE STANDARD TABLE OF ty_errors WITH EMPTY KEY.
 
     METHODS Company_Err_Tab.
-
-    METHODS return_err_table
-      RETURNING VALUE(itab_error) TYPE tt_errors.
-
+    METHODS return_err_table              RETURNING VALUE(itab_error) TYPE tt_errors.
     METHODS New_Customer_Tab.
-
-    METHODS return_New_Customer_Tab_table
-      RETURNING VALUE(itab_new) TYPE tt_errors.
-
+    METHODS return_New_Customer_Tab_table RETURNING VALUE(itab_new) TYPE tt_errors.
+    METHODS write_Import_Err              IMPORTING iv_description TYPE string.
     METHODS call_badi.
 
-    METHODS write_Import_Err
-      IMPORTING iv_description TYPE string.
-*###################### Ende Gruppe 04 #########################################################################
+    DATA tt_customers  TYPE tt_output.
+    DATA tt_badi_error TYPE tt_errors.
+    DATA tt_badi_new   TYPE tt_errors.
 
-
+*###################### Error Tab ###############
     METHODS Email_err_tab.
-
-    DATA lt_customers TYPE tt_output.
-    DATA  get_error_note  TYPE String.
-    DATA column_name TYPE string.
-
-    METHODS Email_Tele_Telfax_Error
-      RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
-
+    DATA lt_customers    TYPE tt_output.
+    DATA get_error_note  TYPE String.
+    DATA column_name     TYPE string.
+    METHODS Email_Tele_Telfax_Error RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
   PRIVATE SECTION.
-    CLASS-METHODS split_csv_line
+    METHODS split_csv_line
       IMPORTING iv_line        TYPE string
       RETURNING VALUE(rt_cols) TYPE string_table.
-*###################### Anfang Gruppe 04 #########################################################################
-    DATA tt_customers TYPE tt_output.
-    DATA tt_badi_error TYPE tt_errors.
-    DATA tt_badi_new TYPE tt_errors.
-*###################### Ende Gruppe 04 #########################################################################
+
+*###################### Service Table ############
+    DATA lt_service TYPE STANDARD TABLE OF zcs1_service1 WITH EMPTY KEY.
+
+    METHODS get_service_data
+      IMPORTING value_name         TYPE string
+      RETURNING VALUE(value_table) TYPE string_table.
+
+    METHODS refresh_service.
+
+    CLASS-DATA gv_is_email_valid_regex     TYPE string_table.
+    CLASS-DATA gv_is_tel_valid_lv_clean    TYPE string_table.
+    CLASS-DATA gv_is_tel_valid_lv_regex_1  TYPE string_table.
+    CLASS-DATA gv_is_tel_valid_lv_regex_2  TYPE string_table.
+    CLASS-DATA gv_split_csv_line_sep       TYPE string_table.
+    CLASS-DATA gv_split_csv_line_replace1  TYPE string_table.
+    CLASS-DATA gv_split_csv_line_replace2  TYPE string_table.
+    CLASS-DATA gv_split_csv_line_replace3  TYPE string_table.
+    CLASS-DATA gv_parse_customers_replace1 TYPE string_table.
+    CLASS-DATA gv_parse_customers_replace2 TYPE string_table.
+
+    CLASS-DATA gv_import_customers_webpass  TYPE string_table.
+    CLASS-DATA gv_import_customers_acc_lock TYPE string_table.
+    CLASS-DATA gv_import_customers_language TYPE string_table.
+    CLASS-DATA gv_import_customers_country  TYPE string_table.
+    CLASS-DATA gv_import_customers_curr     TYPE string_table.
+    CLASS-DATA gv_import_customers_curr_t   TYPE string_table.
 
 ENDCLASS.
 
-
 CLASS lcl_customer_import IMPLEMENTATION.
+
+  METHOD constructor.
+    me->refresh_service(  ).
+  ENDMETHOD.
+
+  METHOD refresh_service.
+
+    CLEAR: me->lt_service.
+    SELECT * FROM zcs1_service1 INTO TABLE @me->lt_service.
+
+    gv_is_email_valid_regex     = me->get_service_data( value_name = 'gv_is_email_valid_regex' ).
+    gv_is_tel_valid_lv_clean    = me->get_service_data( value_name = 'gv_is_tel_valid_lv_clean' ).
+    gv_is_tel_valid_lv_regex_1  = me->get_service_data( value_name = 'gv_is_tel_valid_lv_regex_1' ).
+    gv_is_tel_valid_lv_regex_2  = me->get_service_data( value_name = 'gv_is_tel_valid_lv_regex_2' ).
+
+    gv_split_csv_line_sep       = me->get_service_data( value_name = 'gv_split_csv_line_sep' ).
+    gv_split_csv_line_replace1  = me->get_service_data( value_name = 'gv_split_csv_line_replace1' ).
+    gv_split_csv_line_replace2  = me->get_service_data( value_name = 'gv_split_csv_line_replace2' ).
+    gv_split_csv_line_replace3  = me->get_service_data( value_name = 'gv_split_csv_line_replace3' ).
+
+    gv_parse_customers_replace1 = me->get_service_data( value_name = 'gv_parse_customers_replace1' ).
+    gv_parse_customers_replace2 = me->get_service_data( value_name = 'gv_parse_customers_replace2' ).
+
+    gv_import_customers_webpass  = me->get_service_data( value_name = 'gv_import_customers_webpass' ).
+    gv_import_customers_acc_lock = me->get_service_data( value_name = 'gv_import_customers_acc_lock' ).
+    gv_import_customers_language = me->get_service_data( value_name = 'gv_import_customers_language' ).
+    gv_import_customers_country  = me->get_service_data( value_name = 'gv_import_customers_country' ).
+    gv_import_customers_curr     = me->get_service_data( value_name = 'gv_import_customers_curr' ).
+    gv_import_customers_curr_t   = me->get_service_data( value_name = 'gv_import_customers_curr_t' ).
+
+  ENDMETHOD.
 
   METHOD parse_csv.
     DATA lt_initial_rows TYPE tt_output.
@@ -156,14 +201,15 @@ CLASS lcl_customer_import IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD split_csv_line.
-    SPLIT iv_line AT ';' INTO TABLE DATA(lt_raw).
+    SPLIT iv_line AT gv_split_csv_line_sep[ 1 ] INTO TABLE DATA(lt_raw).
     LOOP AT lt_raw INTO DATA(lv_col).
-      REPLACE ALL OCCURRENCES OF PCRE '^""|^"|"$|""$' IN lv_col WITH ''.
-      REPLACE ALL OCCURRENCES OF PCRE '^ | $' IN lv_col WITH ''.
-      REPLACE ALL OCCURRENCES OF PCRE '^\s+|\s+$' IN lv_col WITH ''.
+      REPLACE ALL OCCURRENCES OF PCRE gv_split_csv_line_REPLACE1[ 1 ] IN lv_col WITH gv_split_csv_line_REPLACE1[ 2 ].
+      REPLACE ALL OCCURRENCES OF PCRE gv_split_csv_line_REPLACE2[ 1 ] IN lv_col WITH gv_split_csv_line_REPLACE2[ 2 ].
+      REPLACE ALL OCCURRENCES OF PCRE gv_split_csv_line_REPLACE3[ 1 ] IN lv_col WITH gv_split_csv_line_REPLACE3[ 2 ].
       APPEND lv_col TO rt_cols.
     ENDLOOP.
   ENDMETHOD.
+
 
   METHOD parse_customers.
 
@@ -203,13 +249,10 @@ CLASS lcl_customer_import IMPLEMENTATION.
       DATA(lv_email_done) = abap_false.
 
       LOOP AT GROUP ls_key INTO DATA(ls_member).
-
         DATA(data1_data2) =  |{ ls_member-data1 }{ ls_member-data2 }| .
         DATA(data1)       =  |{ ls_member-data1 }| .
-
-        data1_data2 = replace( val = data1_data2 pcre = '[^\d]'   with = ''      occ = 0 ).
-        data1_data2 = replace( val = data1_data2 pcre = `^0(\d+)` with = `+49$1` occ = 1 ).
-
+        data1_data2 = replace( val = data1_data2 pcre = gv_parse_customers_replace1[ 1 ] with = gv_parse_customers_replace1[ 2 ] occ = 0 ).
+        data1_data2 = replace( val = data1_data2 pcre = gv_parse_customers_replace1[ 1 ]  with = gv_parse_customers_replace1[ 2 ]  occ = 1 ).
         DATA(valid_phone)   = me->is_tel_valid( data1_data2 ).
         DATA(valid_telefax) = me->is_fax_valid( data1_data2 ).
         DATA(valid_email)   = me->is_email_valid( data1 ).
@@ -301,11 +344,8 @@ CLASS lcl_customer_import IMPLEMENTATION.
             THEN |{ ls_member-type }:{ data1_data2 }|
             ELSE |{ ls_out-memo };{ ls_member-type }:{ data1_data2 }| ).
         ENDCASE.
-
       ENDLOOP.
-
       APPEND ls_out TO rt_output.
-
     ENDLOOP.
 
     MOVE-CORRESPONDING rt_output TO me->tt_customers.
@@ -319,19 +359,20 @@ CLASS lcl_customer_import IMPLEMENTATION.
     "    │  │  └─ domain
     "    │  └─ @
     "    └─ name
-    DATA(lv_regex) = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'.
+
+    DATA(lv_regex) = gv_is_email_valid_regex[ 1 ].
     rv_valid = xsdbool( matches( val = iv_email pcre = lv_regex ) ).
   ENDMETHOD.
 
   METHOD is_tel_valid.
     DATA(lv_clean) = replace( val  = iv_tel
-                              pcre = `(?!^\+)[^\d]`
-                              with  = ``
+                              pcre = gv_is_tel_valid_lv_clean[ 1 ]
+                              with  = gv_is_tel_valid_lv_clean[ 2 ]
                               occ   = 0 ).
 
-    DATA(lv_regex_1) = `^\+?\d{7,15}$`.
+    DATA(lv_regex_1) = gv_is_tel_valid_lv_regex_1[ 1 ].
     DATA(lv_valid_1) = xsdbool( matches( val = lv_clean pcre = lv_regex_1 ) ).
-    DATA(lv_regex_2) = `^\+[1-9]\d{7,14}$`.
+    DATA(lv_regex_2) = gv_is_tel_valid_lv_regex_2[ 1 ].
     DATA(lv_valid_2) = xsdbool( matches( val = lv_clean pcre = lv_regex_2 ) ).
     IF lv_valid_1 = abap_true OR lv_valid_2 = abap_true.
       rv_valid = abap_true.
@@ -349,37 +390,19 @@ CLASS lcl_customer_import IMPLEMENTATION.
   METHOD import_customers.
     DATA gt_customers TYPE SORTED TABLE OF zcs1_customers WITH UNIQUE KEY company street postcode city.
     DATA gs_customers LIKE LINE OF gt_customers.
-    DATA lv_country TYPE land1.
-    DATA lv_currency TYPE zcurrency1.
-    DATA lv_currency_target1 TYPE zcurrency_target1.
-    DATA lv_last_date TYPE zlast_date1.
-
     CONSTANTS lc_method_name TYPE string VALUE '=>IMPORT_CUSTOMERS'.
-
-    SELECT * FROM zcs1_service INTO TABLE @DATA(lt_service).
-
-    "" Country
-    lv_country = VALUE #( lt_service[ id = 'country' active = 'X' ]-id_value
-                                DEFAULT 'D' ).
-    "" Currency
-    lv_currency = VALUE #( lt_service[ id = 'currency' active = 'X' ]-id_value
-                                DEFAULT 'EUR' ).
-    "" Currency_target1
-    lv_currency_target1 = VALUE #( lt_service[ id = 'currency_target' active = 'X' ]-id_value
-                                    DEFAULT 'USD' ).
-
-    lv_last_date = VALUE #( lt_service[ id = 'AktDatum' active = 'X' ]-id_value
-                               DEFAULT cl_abap_context_info=>get_system_date( ) ).
-
     SELECT * FROM zcs1_customers INTO TABLE @gt_customers.
 
     LOOP AT me->tt_customers  ASSIGNING FIELD-SYMBOL(<fs_import>).
       TRY.
           MOVE-CORRESPONDING <fs_import> TO gs_customers.
-          gs_customers-country = lv_country.
-          gs_customers-currency = lv_currency.
-          gs_customers-currency_target = lv_currency_target1.
-          gs_customers-last_date = lv_last_date.
+          gs_customers-country         = gv_import_customers_country[ 1 ].
+          gs_customers-currency        = gv_import_customers_curr[ 1 ].
+          gs_customers-currency_target = gv_import_customers_curr_t[ 1 ].
+          gs_customers-last_date       = cl_abap_context_info=>get_system_date( ).
+          gs_customers-language        = gv_import_customers_language[ 1 ].
+          gs_customers-acc_lock        = gv_import_customers_acc_lock[ 1 ].
+          gs_customers-webpw           = gv_import_customers_webpass[ 1 ].
 
           ASSIGN gt_customers[ company  = gs_customers-company
                      street   = gs_customers-street
@@ -580,90 +603,75 @@ CLASS lcl_customer_import IMPLEMENTATION.
         DATA(lv_phone_err) = <ls_raw>-phone_err.
         DATA(lv_fax_err)   = <ls_raw>-telefax_err.
 
-        IF lv_phone_err = abap_true.
-          <ls_customer>-tele_err = abap_true.
-          TRY.
-              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-                EXPORTING
-                  textid      = zcx_cs1_customer_failed=>regularexpression_tele
-                  column_name = 'Tele'
-                  filename    = column_name.
-            CATCH
-            zcx_cs1_customer_failed INTO DATA(lx_exception).
-              DATA(lv_error_note) = lx_exception->get_text( ).
-          ENDTRY.
-          me->tt_badi_error = VALUE #( BASE tt_badi_error
-                   FOR ls IN me->tt_customers
-                   WHERE ( tele_err = abap_true )
-                ( customers_id = ls-customers_id
-                  company  = ls-company
-                  street   = ls-street
-                  postcode = ls-postcode
-                  city     = ls-city
-                  note_err = lv_error_note  ) ).
-
-        ENDIF.
-
-
-        IF lv_fax_err = abap_true.
-          <ls_customer>-telfax_err = abap_true.
-          TRY.
-              RAISE EXCEPTION TYPE zcx_cs1_customer_failed
-                EXPORTING
-                  textid      = zcx_cs1_customer_failed=>regularexpression_telfax
-                  column_name = 'Telefax'
-                  filename    = column_name.
-            CATCH
-              zcx_cs1_customer_failed INTO lx_exception.
-              lv_error_note = lx_exception->get_text( ).
-          ENDTRY.
-
-          me->tt_badi_error = VALUE #( BASE tt_badi_error
-                   FOR ls IN me->tt_customers
-                   WHERE ( telfax_err = abap_true )
-                ( customers_id = ls-customers_id
-                  company  = ls-company
-                  street   = ls-street
-                  postcode = ls-postcode
-                  city     = ls-city
-                  note_err = lv_error_note  ) ).
-
-        ENDIF.
-
-
+        DATA Medium TYPE string.
         IF lv_email_err = abap_true.
+          Medium = 'Telefon'.
+          <ls_customer>-tele_err = abap_true.
+        ELSEIF lv_phone_err = abap_true.
+          Medium = 'Telefax'.
+          <ls_customer>-telfax_err = abap_true.
+        ELSEIF lv_fax_err = abap_true.
+          Medium = 'Email'.
           <ls_customer>-email_err = abap_true.
+        ENDIF.
+
+        IF lv_email_err = abap_true OR lv_phone_err = abap_true OR lv_fax_err = abap_true.
           TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
-                  textid      = zcx_cs1_customer_failed=>regularexpression_tele
-                  column_name = 'Email'
-                  filename    = column_name.
+                  textid     = zcx_cs1_customer_failed=>RegularExpression_Medium
+                  Medium     = Medium
+                  MediumData = lv_rawdata.
             CATCH
-            zcx_cs1_customer_failed INTO lx_exception.
-              lv_error_note = lx_exception->get_text( ).
+              zcx_cs1_customer_failed INTO DATA(lx_exception).
+              DATA(lv_error_note) = lx_exception->get_text( ).
+              write_import_err( lv_error_note ).
+              APPEND VALUE #( customers_id = <ls_customer>-customers_id
+                              company      = <ls_customer>-company
+                              street       = <ls_customer>-street
+                              postcode     = <ls_customer>-postcode
+                              city         = <ls_customer>-city
+                              note_err     = lv_error_note
+                            ) TO me->tt_badi_error.
           ENDTRY.
-
-          me->tt_badi_error = VALUE #( BASE tt_badi_error
-                   FOR ls IN me->tt_customers
-                   WHERE ( email_err = abap_true )
-                ( customers_id = ls-customers_id
-                  company  = ls-company
-                  street   = ls-street
-                  postcode = ls-postcode
-                  city     = ls-city
-                  note_err = lv_error_note  ) ).
         ENDIF.
 
       ENDLOOP.
-
     ENDLOOP.
-
 
   ENDMETHOD.
 
   METHOD  Email_Tele_Telfax_Error.
     ETT_Erroer = me->tt_badi_error.
+  ENDMETHOD.
+
+  METHOD DELETE_import_err.
+    DELETE FROM zcs1_import_err.
+  ENDMETHOD.
+
+  METHOD get_service_data.
+
+    DATA lv_value TYPE string.
+    CLEAR: value_table.
+
+    READ TABLE me->lt_service INTO DATA(ls_found) WITH KEY id = value_name.
+
+    IF sy-subrc = 0.
+
+      IF ls_found-active = abap_true.
+        lv_value = ls_found-user_value.
+      ELSE.
+        lv_value = ls_found-default_value.
+      ENDIF.
+
+      SPLIT lv_value AT '###SC###' INTO TABLE value_table.
+
+      LOOP AT value_table ASSIGNING FIELD-SYMBOL(<lv_val>).
+        <lv_val> = condense( <lv_val> ).
+      ENDLOOP.
+      APPEND '' TO value_table.
+    ENDIF.
+
   ENDMETHOD.
 
 

@@ -18,7 +18,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_cs1_badi_impl IMPLEMENTATION.
+CLASS ZCL_CS1_BADI_IMPL IMPLEMENTATION.
 
 
   METHOD if_oo_adt_classrun~main.

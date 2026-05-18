@@ -2,6 +2,8 @@ CLASS lcl_customer_import DEFINITION.
 
   PUBLIC SECTION.
 
+    METHODS constructor.
+
     TYPES: BEGIN OF ty_import,
              company  TYPE string,
              street   TYPE string,
@@ -60,8 +62,8 @@ CLASS lcl_customer_import DEFINITION.
       IMPORTING iv_tel          TYPE string
       RETURNING VALUE(rv_valid) TYPE abap_bool.
 
+    CLASS-METHODS delete_import_err.
 
-    CLASS-METHODS DELETE_IMPORT_ERR.
 
 
 *###################### Anfang Gruppe 04 #########################################################################
@@ -117,14 +119,24 @@ CLASS lcl_customer_import DEFINITION.
       RETURNING VALUE(ETT_Erroer) TYPE tt_errors.
 
   PRIVATE SECTION.
-    CLASS-METHODS split_csv_line
+    METHODS split_csv_line
       IMPORTING iv_line        TYPE string
       RETURNING VALUE(rt_cols) TYPE string_table.
 *###################### Anfang Gruppe 04 #########################################################################
     DATA tt_customers TYPE tt_output.
     DATA tt_badi_error TYPE tt_errors.
     DATA tt_badi_new TYPE tt_errors.
-*###################### Ende Gruppe 04 #########################################################################
+*###################### Service Table #########################################################################
+
+    DATA lt_service TYPE STANDARD TABLE OF zcs1_service1 WITH EMPTY KEY.
+
+    METHODS get_service_data
+      IMPORTING value_name         TYPE string
+      RETURNING VALUE(value_table) TYPE string_table.
+
+    METHODS refresh_service.
+
+
 
 ENDCLASS.
 
@@ -169,6 +181,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
+
   METHOD parse_customers.
 
     DATA rt_output TYPE tt_output.
@@ -205,6 +218,7 @@ CLASS lcl_customer_import IMPLEMENTATION.
       DATA(lv_phone_done) = abap_false.
       DATA(lv_fax_done)   = abap_false.
       DATA(lv_email_done) = abap_false.
+
 
       LOOP AT GROUP ls_key INTO DATA(ls_member).
 
@@ -323,11 +337,17 @@ CLASS lcl_customer_import IMPLEMENTATION.
     "    │  │  └─ domain
     "    │  └─ @
     "    └─ name
+    "DATA(regex) = me->get_service_data( value_name = 'is_email_valid.regex)' ).
     DATA(lv_regex) = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'.
     rv_valid = xsdbool( matches( val = iv_email pcre = lv_regex ) ).
   ENDMETHOD.
 
   METHOD is_tel_valid.
+
+    "DATA(regex) = me->get_service_data( value_name = 'is_email_valid.regex)' ).
+    "DATA(regex) = me->get_service_data( value_name = 'is_email_valid.regex)' ).
+    "DATA(regex) = me->get_service_data( value_name = 'is_email_valid.regex)' ).
+
     DATA(lv_clean) = replace( val  = iv_tel
                               pcre = `(?!^\+)[^\d]`
                               with  = ``
@@ -601,19 +621,19 @@ CLASS lcl_customer_import IMPLEMENTATION.
         DATA(lv_phone_err) = <ls_raw>-phone_err.
         DATA(lv_fax_err)   = <ls_raw>-telefax_err.
 
-        data Medium type string.
-        if lv_email_err = abap_true.
-            Medium = 'Telefon'.
-            <ls_customer>-tele_err = abap_true.
-        elseif lv_phone_err = abap_true.
-             Medium = 'Telefax'.
-             <ls_customer>-telfax_err = abap_true.
-        elseif lv_fax_err = abap_true.
-            Medium = 'Email'.
-            <ls_customer>-email_err = abap_true.
-        endif.
+        DATA Medium TYPE string.
+        IF lv_email_err = abap_true.
+          Medium = 'Telefon'.
+          <ls_customer>-tele_err = abap_true.
+        ELSEIF lv_phone_err = abap_true.
+          Medium = 'Telefax'.
+          <ls_customer>-telfax_err = abap_true.
+        ELSEIF lv_fax_err = abap_true.
+          Medium = 'Email'.
+          <ls_customer>-email_err = abap_true.
+        ENDIF.
 
-        IF lv_email_err = abap_true or lv_phone_err = abap_true or lv_fax_err = abap_true.
+        IF lv_email_err = abap_true OR lv_phone_err = abap_true OR lv_fax_err = abap_true.
           TRY.
               RAISE EXCEPTION TYPE zcx_cs1_customer_failed
                 EXPORTING
@@ -646,7 +666,41 @@ CLASS lcl_customer_import IMPLEMENTATION.
 
 
   METHOD DELETE_import_err.
-        DELETE FROM zcs1_import_err.
+    DELETE FROM zcs1_import_err.
   ENDMETHOD.
 
+  METHOD get_service_data.
+
+    DATA lv_value TYPE string.
+
+    CLEAR: me->lt_service, value_table.
+
+
+    READ TABLE me->lt_service INTO DATA(ls_found) WITH KEY id = value_name.
+    IF sy-subrc = 0.
+
+      IF ls_found-active = abap_true.
+        lv_value = ls_found-user_value.
+      ELSE.
+        lv_value = ls_found-default_value.
+      ENDIF.
+
+      SPLIT lv_value AT '###SC###' INTO TABLE value_table.
+
+      LOOP AT value_table ASSIGNING FIELD-SYMBOL(<lv_val>).
+        <lv_val> = condense( <lv_val> ).
+      ENDLOOP.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD constructor.
+    " Service-Tabelle 1x beim Start laden
+    SELECT * FROM zcs1_service1 INTO TABLE @me->lt_service.
+
+  ENDMETHOD.
+
+METHOD refresh_service.
+  SELECT * FROM zcs1_service1 INTO TABLE @me->lt_service.
+ENDMETHOD.
 ENDCLASS.

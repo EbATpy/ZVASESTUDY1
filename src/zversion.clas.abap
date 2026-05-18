@@ -11,8 +11,7 @@ ENDCLASS.
 
 
 
-
-CLASS zversion IMPLEMENTATION.
+CLASS ZVERSION IMPLEMENTATION.
 
 
   METHOD if_oo_adt_classrun~main.
@@ -21,8 +20,4 @@ CLASS zversion IMPLEMENTATION.
     out->write( sy-saprl ).
 
   ENDMETHOD.
-
-
-
 ENDCLASS.
-

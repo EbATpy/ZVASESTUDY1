@@ -140,7 +140,10 @@ CLASS zcx_cs1_customer_failed DEFINITION
   PRIVATE SECTION.
 ENDCLASS.
 
-CLASS zcx_cs1_customer_failed IMPLEMENTATION.
+
+
+CLASS ZCX_CS1_CUSTOMER_FAILED IMPLEMENTATION.
+
 
   METHOD new_message.
     " 1. Instanz erstellen (Konstruktor nutzt meist nur textid und previous)
