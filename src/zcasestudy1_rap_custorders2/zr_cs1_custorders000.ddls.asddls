@@ -4,6 +4,7 @@
 @EndUserText.label: '###GENERATED Core Data Service Entity'
 define root view entity ZR_CS1_CUSTORDERS000
   as select from zcs1_custorders as CUSTORDERS
+  association [0..1] to zcs1_StatusVH as _StatusVH on $projection.Status = _StatusVH.Status
 {
   key orderid as Orderid,
   @Consumption.valueHelpDefinition: [
@@ -22,7 +23,10 @@ define root view entity ZR_CS1_CUSTORDERS000
       useForValidation: true
     } ]
   }      
+  @ObjectModel.text.element: [ 'Status' ] // 2. Verknüpfung zum Textfeld herstellen
   status as Status,
+//    // Dieses Feld liest die Bezeichnung aus der Wertehilfe-View
+//  _StatusVH.StatusText as StatusText,
   @Consumption.valueHelpDefinition: [ {
     entity.name: 'I_CurrencyStdVH', 
     entity.element: 'Currency', 
@@ -38,5 +42,7 @@ define root view entity ZR_CS1_CUSTORDERS000
   @Semantics.systemDateTime.localInstanceLastChangedAt: true
   local_last_changed_at as LocalLastChangedAt,
   @Semantics.systemDateTime.lastChangedAt: true
-  last_changed_at as LastChangedAt
+  last_changed_at as LastChangedAt,
+  _StatusVH
+  
 }

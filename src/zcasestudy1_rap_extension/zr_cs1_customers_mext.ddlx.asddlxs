@@ -44,6 +44,10 @@ annotate view ZR_CS1_CUSTOMERS with
    useForValidation: true
   } ]
   Language;
+   @UI.lineItem: [{ position: 60, importance: #MEDIUM, label: 'VIP Kunde' }]
+  @UI.identification: [{ position: 60, label: 'VIP Kunde' }]
+  @UI.fieldGroup: [{ qualifier: 'General', position: 60, label: 'VIP Kunde' }]
+  @UI.selectionField: [ { position: 45   } ]
   @EndUserText.label: 'VIP Kunde'
   zzvip_zem;
 }

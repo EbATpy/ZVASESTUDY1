@@ -3,7 +3,7 @@
 @UI.headerInfo.title.value: 'Customerid'
 @UI.headerInfo.description.type: #STANDARD
 @UI.headerInfo.description.value: 'Customerid'
-annotate view ZC_CS1_CUSTOMERS with
+annotate view ZC_CS1_CUSTOMERS000 with
 {
   @UI.facet: [ {
     label: 'Allgemeine Informationen',
@@ -18,22 +18,53 @@ annotate view ZC_CS1_CUSTOMERS with
     { type: #FOR_ACTION, dataAction: 'CancelOrders', label: 'Cancel Orders', position: 2 },
     { position: 10 }
   ]
-  @UI.selectionField: [ { position: 10  } ]
+  @UI.selectionField: [ { position: 15  } ]
   Customerid;
   
     
     @UI.identification: [ {
-    position: 15
+    position: 20
   } ]
   @UI.lineItem: [ {
-    position: 15, importance: #HIGH
+    position: 20, importance: #HIGH
   } ]
   @UI.selectionField: [ {
-    position: 15
+    position: 20
   } ]
   OrderCount;
 
-  
+  @UI.identification: [ {
+    position: 25
+  } ]
+  @UI.lineItem: [ {
+    position: 25
+  } ]
+  @UI.selectionField: [ {
+    position: 25
+  } ]
+  Salutation;
+
+  @UI.identification: [ {
+    position: 30
+  } ]
+  @UI.lineItem: [ {
+    position: 30
+  } ]
+  @UI.selectionField: [ {
+    position: 30
+  } ]
+  LastName;
+
+  @UI.identification: [ {
+    position: 40
+  } ]
+  @UI.lineItem: [ {
+    position: 40
+  } ]
+  @UI.selectionField: [ {
+    position: 40
+  } ]
+  FirstName;
 
   @UI.identification: [ {
     position: 50
@@ -101,39 +132,6 @@ annotate view ZC_CS1_CUSTOMERS with
   } ]
   AccLock;
 
-@UI.identification: [ {
-    position: 20
-  } ]
-  @UI.lineItem: [ {
-    position: 20
-  } ]
-  @UI.selectionField: [ {
-    position: 20
-  } ]
-  Salutation;
-
-  @UI.identification: [ {
-    position: 30
-  } ]
-  @UI.lineItem: [ {
-    position: 30
-  } ]
-  @UI.selectionField: [ {
-    position: 30
-  } ]
-  LastName;
-
-  @UI.identification: [ {
-    position: 40
-  } ]
-  @UI.lineItem: [ {
-    position: 40
-  } ]
-  @UI.selectionField: [ {
-    position: 40
-  } ]
-  FirstName;
-
   @UI.identification: [ {
     position: 110
   } ]
@@ -150,10 +148,21 @@ annotate view ZC_CS1_CUSTOMERS with
   @UI.selectionField: [ { position: 120 } ]
   SalesVolume;
 
+//  // NEU: Eigenständiges UI-Control für die Umsatz-Währung (Position 125)
+//  @UI.identification: [ { position: 125, label: 'Währung Umsatz' } ]
+//  @UI.lineItem: [ { position: 125, label: 'Währung Umsatz' } ]
+//  Currency;
+
   @UI.identification: [ { position: 130 } ]
   @UI.lineItem: [ { position: 130 } ]
   @UI.selectionField: [ { position: 130 } ]
   SalesVolumeTarget;
+  
+//  // NEU: Eigenständiges UI-Control für die Ziel-Währung (Position 135)
+//  @UI.identification: [ { position: 135, label: 'Zielwährung' } ]
+//  @UI.lineItem: [ { position: 135, label: 'Zielwährung' } ]
+//  CurrencyTarget;
+  
 
   @UI.identification: [ {
     position: 140
@@ -317,18 +326,18 @@ annotate view ZC_CS1_CUSTOMERS with
   } ]
   @UI.hidden: true
   LastChangedAt;
-
-  @EndUserText.label: '_BaseEntity'
+  
+  @EndUserText.label: 'VIP Kunde'
   @UI.identification: [ {
-    position: 280 ,
-    label: '_BaseEntity'
+    position: 280 , 
+    label: 'ZzvipZem'
   } ]
   @UI.lineItem: [ {
-    position: 280 ,
-    label: '_BaseEntity'
+    position: 280 , 
+    label: 'ZzvipZem'
   } ]
   @UI.selectionField: [ {
-    position: 280
+    position: 280 
   } ]
-  _BaseEntity;
+  ZzvipZem;
 }

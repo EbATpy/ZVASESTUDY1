@@ -3,14 +3,13 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_CS1_CUSTOMER_IMPORT_03_01</CLSNAME>
+    <CLSNAME>ZCL_ORDERCOUNT</CLSNAME>
     <LANGU>D</LANGU>
-    <DESCRIPT>T100 -&gt; CSV Import from ztl_00_casestudy</DESCRIPT>
+    <DESCRIPT>ZCL_ORDERCOUNT</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>
-    <WITH_UNIT_TESTS>X</WITH_UNIT_TESTS>
    </VSEOCLASS>
   </asx:values>
  </asx:abap>

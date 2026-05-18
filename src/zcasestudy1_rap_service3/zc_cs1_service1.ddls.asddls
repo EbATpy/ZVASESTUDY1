@@ -1,40 +1,46 @@
 @Metadata.allowExtensions: true
 @Metadata.ignorePropagatedAnnotations: true
-@Endusertext: {
-  Label: '###GENERATED Core Data Service Entity'
-}
-@Objectmodel: {
-  Sapobjectnodetype.Name: 'ZCS1_SERVICE1'
-}
+@EndUserText: { label: 'Service Config' }
+@ObjectModel.sapObjectNodeType.name: 'ZCS1_SERVICE1'
 @AccessControl.authorizationCheck: #MANDATORY
 define root view entity ZC_CS1_SERVICE1
-  provider contract TRANSACTIONAL_QUERY
+  provider contract transactional_query
   as projection on ZR_CS1_SERVICE1
-  association [1..1] to ZR_CS1_SERVICE1 as _BaseEntity on $projection.ID = _BaseEntity.ID
 {
+      @UI.facet: [{ id: 'General', type: #IDENTIFICATION_REFERENCE, label: 'General' }]
+      @UI.lineItem: [{ position: 10 }]
+      @UI.identification: [{ position: 10 }]
   key ID,
-  Active,
-  UserValue,
-  DefaultValue,
-  @Semantics: {
-    User.Createdby: true
-  }
-  CreatedBy,
-  @Semantics: {
-    Systemdatetime.Createdat: true
-  }
-  CreatedAt,
-  @Semantics: {
-    User.Localinstancelastchangedby: true
-  }
-  LocalLastChangedBy,
-  @Semantics: {
-    Systemdatetime.Localinstancelastchangedat: true
-  }
-  LocalLastChangedAt,
-  @Semantics: {
-    Systemdatetime.Lastchangedat: true
-  }
-  LastChangedAt,
-  _BaseEntity
+  
+      @UI.identification: [{ position: 20 }]  // Active
+      @UI.lineItem: [{ position: 20 }]
+      Active,
+      
+      @UI.identification: [{ position: 30 }]  // UserValue
+      @UI.lineItem: [{ position: 30 }]
+      @Semantics.text: true
+      UserValue,
+      
+      @UI.identification: [{ position: 40 }]  // DefaultValue
+      @UI.lineItem: [{ position: 40 }]
+      @Semantics.text: true
+      DefaultValue,
+      
+      @UI.identification: [{ position: 50 }]
+      CreatedBy,
+      
+      @UI.identification: [{ position: 60 }]
+      @Semantics.systemDateTime.createdAt: true
+      CreatedAt,
+      
+      @UI.identification: [{ position: 70 }]
+      LocalLastChangedBy,
+      
+      @UI.identification: [{ position: 80 }]
+      @Semantics.systemDateTime.localInstanceLastChangedAt: true
+      LocalLastChangedAt,
+      
+      @UI.hidden: true
+      @Semantics.systemDateTime.lastChangedAt: true
+      LastChangedAt
 }

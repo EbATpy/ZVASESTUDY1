@@ -2,7 +2,7 @@ projection implementation in class ZBP_C_CS1_CUSTOMERS unique;
 strict ( 2 );
 extensible;
 use draft;
-use side effects;
+//use side effects;
 define behavior for ZC_CS1_CUSTOMERS alias CUSTOMERS
 extensible
 use etag

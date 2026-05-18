@@ -6,7 +6,9 @@
 "ZCS1_CUSTORDERS"
 ],
 "ASSOCIATED":
-[],
+[
+"ZCS1_STATUSVH"
+],
 "BASE":
 [],
 "ANNO_REF":

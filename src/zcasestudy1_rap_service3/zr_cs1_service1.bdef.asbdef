@@ -18,6 +18,7 @@ authorization master( global )
    CreatedAt,
    LocalLastChangedBy,
    LocalLastChangedAt,
+   DefaultValue,
    LastChangedAt;
 
   field ( readonly : update )

@@ -32,7 +32,14 @@ authorization master( global )
   draft action Discard;
   draft action Edit;
   draft action Resume;
-  draft determine action Prepare;
+  draft determine action Prepare
+  { determination determinationgetOrderTotal;
+
+  }
+
+   determination determinationgetOrderTotal on save {
+    field OrderTotal, Discount; }
+
 
   mapping for ZCS1_CUSTORDERS corresponding extensible
   {
@@ -49,6 +56,7 @@ authorization master( global )
     LocalLastChangedBy = LOCAL_LAST_CHANGED_BY;
     LocalLastChangedAt = LOCAL_LAST_CHANGED_AT;
     LastChangedAt = LAST_CHANGED_AT;
+
   }
 
 }

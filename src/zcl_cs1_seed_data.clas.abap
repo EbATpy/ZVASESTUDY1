@@ -1,9 +1,6 @@
 " Tasks Sebastian
 " Statisctic service einbauen
-" CUSTOM IMPORT neue einbauen alte sachen wegschreiben über teams schicken
 "
-
-
 
 CLASS zcl_cs1_seed_data DEFINITION
   PUBLIC
@@ -11,10 +8,12 @@ CLASS zcl_cs1_seed_data DEFINITION
   CREATE PUBLIC.
 
   PUBLIC SECTION.
+    " Interface für ADT Run-Konsole F9
     INTERFACES if_oo_adt_classrun.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
+    " --- Seed-Methoden für alle Tabellen ---
     METHODS seed_customers_csv
       IMPORTING iv_out TYPE REF TO if_oo_adt_classrun_out.
     METHODS seed_orders
@@ -26,72 +25,105 @@ CLASS zcl_cs1_seed_data DEFINITION
     METHODS seed_zipcity
       IMPORTING iv_out TYPE REF TO if_oo_adt_classrun_out.
 
-    CONSTANTS: gc_client TYPE mandt VALUE '100',
-               gc_date   TYPE d     VALUE '20260429',
+    " --- Konstanten für Testdaten ---
+    " In ABAP Cloud kein sy-mandt mehr, aber bei Customizing-Tabellen ok
+    CONSTANTS: gc_client TYPE mandt   VALUE '100',
+               gc_date   TYPE d       VALUE '20260429',
                gc_user   TYPE syuname VALUE 'SEED'.
 ENDCLASS.
 
 
 
-CLASS ZCL_CS1_SEED_DATA IMPLEMENTATION.
-
+CLASS zcl_cs1_seed_data IMPLEMENTATION.
 
   METHOD if_oo_adt_classrun~main.
-    seed_customers_csv( out ).
-    seed_orders( out ).
-    seed_statistic( out ).
-    seed_service( out ).
-    seed_zipcity( out ).
+    " -----------------------------------------------------------------
+    " Hauptmethode für F9 in ADT
+    " Führt alle Seed-Methoden nacheinander aus
+    " Reihenfolge wichtig: erst Config-Tabellen, dann Stammdaten
+    " -----------------------------------------------------------------
+    seed_customers_csv( out ). " CSV-Import + Customers
+    seed_orders( out ).        " Bestellungen - braucht Customers
+    seed_statistic( out ).     " Customizing welche Klasse/Interface
+    seed_service( out ).       " Config für Regex, CSV-Parser etc.
+    seed_zipcity( out ).       " PLZ-Stammdaten
   ENDMETHOD.
 
 
   METHOD seed_service.
+    " -----------------------------------------------------------------
+    " Befüllt ZCS1_SERVICE1 mit Config-Werten
+    " Diese Tabelle steuert Regex, CSV-Trenner, Defaults etc.
+    " active = abap_false -> user_value wird genommen
+    " active = abap_true  -> default_value wird genommen
+    " -----------------------------------------------------------------
     DELETE FROM zcs1_service1.
 
+    " MODIFY = INSERT oder UPDATE je nachdem ob Key existiert
     MODIFY zcs1_service1 FROM TABLE @( VALUE #(
-      ( id = 'mt_split_csv_line_replace1' active = abap_false user_value = `^""|^"|"$|""$ ###SC###` default_value = `^""|^"|"$|""$ ###SC###` created_by = gc_user )
-      ( id = 'mt_split_csv_line_replace2' active = abap_false user_value = `^ | $         ###SC###` default_value = `^ | $         ###SC###` created_by = gc_user )
-      ( id = 'mt_split_csv_line_replace3' active = abap_false user_value = `^\s+|\s+$     ###SC###` default_value = `^\s+|\s+$     ###SC###` created_by = gc_user )
-      ( id = 'mt_split_csv_line_sep'      active = abap_false user_value = `;` default_value = `;` created_by = gc_user )
-      ( id = 'mt_is_email_valid_regex'    active = abap_false user_value = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` default_value = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` created_by = gc_user )
-      ( id = 'mt_is_tel_valid_lv_clean'   active = abap_false user_value = `(?!^\+)[^\d]###SC###` default_value = `(?!^\+)[^\d]###SC###` created_by = gc_user )
-      ( id = 'mt_is_tel_valid_lv_regex_1' active = abap_false user_value = `^\+?\d{7,15}$` default_value = `^\+?\d{7,15}$` created_by = gc_user )
-      ( id = 'mt_is_tel_valid_lv_regex_2' active = abap_false user_value = `^\+[1-9]\d{7,14}$` default_value = `^\+[1-9]\d{7,14}$` created_by = gc_user )
-      ( id = 'mt_parse_customers_replace1' active = abap_false user_value = `[^\d]   ###SC###`    default_value = `[^\d]   ###SC###` created_by = gc_user )
-      ( id = 'mt_parse_customers_replace2' active = abap_false user_value = `^0(\d+) ###SC###+49$1` default_value = `^0(\d+) ###SC###+49$1` created_by = gc_user )
-      ( id = 'mt_import_customers_webpass'  active = abap_false user_value = `Welcome1!` default_value = `Welcome1!` created_by = gc_user )
-      ( id = 'mt_import_customers_acc_lock' active = abap_false user_value = `X`         default_value = ` `   created_by = gc_user )
-      ( id = 'mt_import_customers_language' active = abap_false user_value = `D`         default_value = `D`   created_by = gc_user )
-      ( id = 'mt_import_customers_country'  active = abap_false user_value = `DE`        default_value = `DE`  created_by = gc_user )
-      ( id = 'mt_import_customers_curr'     active = abap_false user_value = `EUR`       default_value = `EUR` created_by = gc_user )
-      ( id = 'mt_import_customers_curr_t'   active = abap_false user_value = `USD`       default_value = `USD` created_by = gc_user )
-      ( id = 'mt_statistics1_land'          active = abap_false user_value = `X`         default_value = `X`   created_by = gc_user )
+      " --- CSV-Parser Config ---
+      ( id = 'mt_split_csv_line_replace1' active = abap_false user_value = `^""|^"|"$|""$###SC###` default_value = `^""|^"|"$|""$ ###SC###` created_by = gc_user )
+      ( id = 'mt_split_csv_line_replace2' active = abap_false user_value = `^ | $###SC###`         default_value = `^ | $###SC###` created_by = gc_user )
+      ( id = 'mt_split_csv_line_replace3' active = abap_false user_value = `^\s+|\s+$###SC###`     default_value = `^\s+|\s+$###SC###` created_by = gc_user )
+      ( id = 'mt_split_csv_line_sep'      active = abap_false user_value = `;`                     default_value = `;` created_by = gc_user )
 
+      " --- Validierungs-Regex ---
+      ( id = 'mt_is_email_valid_regex'    active = abap_false user_value = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` default_value = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` created_by = gc_user )
+      ( id = 'mt_is_tel_valid_lv_clean'   active = abap_false user_value = `(?!^\+)[^\d]###SC###`  default_value = `(?!^\+)[^\d]###SC###` created_by = gc_user )
+      ( id = 'mt_is_tel_valid_lv_regex_1' active = abap_false user_value = `^\+?\d{7,15}$`         default_value = `^\+?\d{7,15}$` created_by = gc_user )
+      ( id = 'mt_is_tel_valid_lv_regex_2' active = abap_false user_value = `^\+[1-9]\d{7,14}$`     default_value = `^\+[1-9]\d{7,14}$` created_by = gc_user )
+
+      " --- CSV-Merge Config ---
+      ( id = 'mt_parse_customers_replace1' active = abap_false user_value = `[^\d]###SC###`        default_value = `[^\d]   ###SC###` created_by = gc_user )
+      ( id = 'mt_parse_customers_replace2' active = abap_false user_value = `^0(\d+)###SC###+49$1` default_value = `^0(\d+) ###SC###+49$1` created_by = gc_user )
+
+      " --- Import-Defaults ---
+      ( id = 'mt_import_customers_webpass'  active = abap_false user_value = `Welcome1!` default_value = `Welcome1!` created_by = gc_user )
+      ( id = 'mt_import_customers_acc_lock' active = abap_false user_value = `X`         default_value = ` `    created_by = gc_user )
+      ( id = 'mt_import_customers_language' active = abap_false user_value = `D`         default_value = `D`    created_by = gc_user )
+      ( id = 'mt_import_customers_country'  active = abap_false user_value = `DE`        default_value = `DE`   created_by = gc_user )
+      ( id = 'mt_import_customers_curr'     active = abap_false user_value = `EUR`       default_value = `EUR`  created_by = gc_user )
+      ( id = 'mt_import_customers_curr_t'   active = abap_false user_value = `USD`       default_value = `USD`  created_by = gc_user )
+
+      " --- Statistik Config ---
+      ( id = 'mt_statistics1_land'          active = abap_false user_value = `DE`        default_value = `DE`   created_by = gc_user )
+      ( id = 'mt_statistics1_lv_gjahr'      active = abap_false user_value = `2026`      default_value = `2026` created_by = gc_user )
       ) ).
 
     IF sy-subrc = 0.
-      COMMIT WORK.
+      COMMIT WORK. " In ABAP Cloud eigentlich nicht nötig, aber schadet nicht
     ENDIF.
 
+    " Kontrolle: Anzahl prüfen
     SELECT * FROM zcs1_service1 INTO TABLE @DATA(lt_check).
     iv_out->write( |Service1 Einträge: { lines( lt_check ) }| ).
   ENDMETHOD.
 
 
   METHOD seed_customers_csv.
+    " -----------------------------------------------------------------
+    " Löscht alte Daten und startet CSV-Import
+    " Nutzt ZCL_CS1_CUSTOMER_IMPORT -> liest ZTL_00_CASESTUDY
+    " -----------------------------------------------------------------
     DELETE FROM zcs1_customers.
     iv_out->write( |Customers gelöscht: { sy-dbcnt }| ).
 
     DELETE FROM zcs1_import_err.
     iv_out->write( |Import Errors gelöscht: { sy-dbcnt }| ).
 
+    " Setup + Import starten. Import liest aus ZTL_00_CASESTUDY
     DATA(lo_import) = NEW zcl_cs1_customer_import( ).
-    lo_import->main_programm( io_out = iv_out ).
+    lo_import->main_programm( iv_out = iv_out ).
     iv_out->write( |Customers eingefügt: { sy-dbcnt }| ).
   ENDMETHOD.
 
 
   METHOD seed_statistic.
+    " -----------------------------------------------------------------
+    " Customizing für dynamische Klassenfindung
+    " ZCL_STATISTICS1_04 liest hier welche Klasse/Interface aktiv ist
+    " DEFAULT0 = Produktiv, Rest = Testvarianten
+    " -----------------------------------------------------------------
     DELETE FROM zcs1_statistic.
     INSERT zcs1_statistic FROM TABLE @( VALUE #(
       ( client = gc_client stat_id = 'DEFAULT0' interface_name = 'ZIF_STATISTICS1'     class_name = 'ZCL_STATISTICS1'     active = abap_true  created_by = gc_user )
@@ -104,6 +136,11 @@ CLASS ZCL_CS1_SEED_DATA IMPLEMENTATION.
 
 
   METHOD seed_orders.
+    " -----------------------------------------------------------------
+    " Testbestellungen für Statistik-Auswertung
+    " Verschiedene Status BA/BB/BN/BO für Filter-Tests
+    " Alle auf gc_date = 2026-04-29
+    " -----------------------------------------------------------------
     DELETE FROM zcs1_custorders.
     iv_out->write( |Orders gelöscht: { sy-dbcnt }| ).
 
@@ -130,8 +167,13 @@ CLASS ZCL_CS1_SEED_DATA IMPLEMENTATION.
 
 
   METHOD seed_zipcity.
+    " -----------------------------------------------------------------
+    " PLZ-Stammdaten für deutsche Großstädte
+    " Wird für Adressvalidierung genutzt
+    " -----------------------------------------------------------------
     DELETE FROM zcs1_zipcity.
 
+    " MODIFY = INSERT oder UPDATE, sicherer als INSERT
     MODIFY zcs1_zipcity FROM TABLE @( VALUE #(
       ( client = sy-mandt postcode = '10115' city = 'Berlin' created_by = gc_user )
       ( client = sy-mandt postcode = '20095' city = 'Hamburg' created_by = gc_user )

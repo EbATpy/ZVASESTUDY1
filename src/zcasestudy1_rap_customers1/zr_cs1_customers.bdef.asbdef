@@ -39,7 +39,6 @@ late numbering
   draft action Edit;
   draft action Resume;
 
-
   static action CancelOrders parameter ZCS1_CUSTOMER_SEL result [1] $self; // <-- Button Cancel Orders
   action ShowStatistics result [1] $self; // <-- Button Show Statistics
 

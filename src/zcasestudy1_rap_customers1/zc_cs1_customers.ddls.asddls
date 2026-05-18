@@ -17,8 +17,8 @@ define root view entity ZC_CS1_CUSTOMERS
       Company,
       Street,
       City,
-      @EndUserText.label: 'Anzahl Bestellungen'
-      _OrderCount.OrderCount,
+//      @EndUserText.label: 'Anzahl Bestellungen'
+//      _OrderCount.OrderCount,
 
       @Consumption: {
        valueHelpDefinition: [ {
@@ -28,7 +28,8 @@ define root view entity ZC_CS1_CUSTOMERS
        } ] }
       @ObjectModel.text.association: '_Country' // Referenz auf die Assoziation im View
       Country,
-      
+      @ObjectModel.virtualElementCalculatedBy: 'ABAP:ZCL_ORDERCOUNT'
+      virtual ORDERCOUNT: abap.char(256),
       Postcode,
       AccLock,
       LastDate,

@@ -1,139 +1,58 @@
 @Metadata.layer: #CORE
-@UI.headerInfo.title.type: #STANDARD
-@UI.headerInfo.title.value: 'ID'
-@UI.headerInfo.description.type: #STANDARD
-@UI.headerInfo.description.value: 'ID'
+@UI: {
+  headerInfo: { 
+    typeName: 'Service Config', 
+    typeNamePlural: 'Service Configs',
+    title: { type: #STANDARD, value: 'ID' }
+  }
+}
 annotate view ZC_CS1_SERVICE1 with
 {
-  @EndUserText.label: 'ID'
-  @UI.facet: [ {
-    label: 'Allgemeine Informationen', 
-    id: 'GeneralInfo', 
-    purpose: #STANDARD, 
-    position: 10 , 
-    type: #IDENTIFICATION_REFERENCE
-  } ]
-  @UI.identification: [ {
-    position: 10 , 
-    label: 'ID'
-  } ]
-  @UI.lineItem: [ {
-    position: 10 , 
-    label: 'ID'
-  } ]
-  @UI.selectionField: [ {
-    position: 10 
-  } ]
+  @UI.facet: [
+    { id: 'General', type: #COLLECTION, label: 'TableSep-> ###SC###', position: 10 },
+    { id: 'Config', type: #FIELDGROUP_REFERENCE, targetQualifier: 'Config', parentId: 'General', label: 'Configure User Service Datasource', position: 10 },
+    { id: 'Admin', type: #FIELDGROUP_REFERENCE, targetQualifier: 'Admin', parentId: 'General', label: 'Administrative Data', position: 20 }
+  ]
+  
+  @UI: { lineItem: [ { position: 10 } ], identification: [ { position: 10 } ] }
   ID;
   
-  @EndUserText.label: 'Active'
-  @UI.identification: [ {
-    position: 20 , 
-    label: 'Active'
-  } ]
-  @UI.lineItem: [ {
-    position: 20 , 
-    label: 'Active'
-  } ]
-  @UI.selectionField: [ {
-    position: 20 
-  } ]
+  @UI: { 
+    lineItem: [ { position: 20 } ], 
+    identification: [ { position: 20 } ],
+    fieldGroup: [ { qualifier: 'Config', position: 10, label: 'Enable' } ]
+  }
   Active;
   
-  @EndUserText.label: 'UserValue'
-  @UI.identification: [ {
-    position: 30 , 
-    label: 'UserValue'
-  } ]
-  @UI.lineItem: [ {
-    position: 30 , 
-    label: 'UserValue'
-  } ]
-  @UI.selectionField: [ {
-    position: 30 
-  } ]
-  UserValue;
-  
-  @EndUserText.label: 'DefaultValue'
-  @UI.identification: [ {
-    position: 40 , 
-    label: 'DefaultValue'
-  } ]
-  @UI.lineItem: [ {
-    position: 40 , 
-    label: 'DefaultValue'
-  } ]
-  @UI.selectionField: [ {
-    position: 40 
-  } ]
+  @UI: { 
+    lineItem: [ { position: 30 } ], 
+    identification: [ { position: 30 } ],
+    fieldGroup: [ { qualifier: 'Config', position: 20, label: 'DefaultValue' } ]
+  }
+
   DefaultValue;
   
-  @UI.identification: [ {
-    position: 50 
-  } ]
-  @UI.lineItem: [ {
-    position: 50 
-  } ]
-  @UI.selectionField: [ {
-    position: 50 
-  } ]
+  @UI: { 
+    lineItem: [ { position: 30 } ], 
+    identification: [ { position: 30 } ],
+    fieldGroup: [ { qualifier: 'Config', position: 20, label: 'UserValue' } ]
+    
+  }
+  @UI.multiLineText: true  // <-- TextArea statt Input, mehrzeilig
+  UserValue;
+  
+  @UI: { fieldGroup: [ { qualifier: 'Admin', position: 10 } ] }
   CreatedBy;
   
-  @UI.identification: [ {
-    position: 60 
-  } ]
-  @UI.lineItem: [ {
-    position: 60 
-  } ]
-  @UI.selectionField: [ {
-    position: 60 
-  } ]
+  @UI: { fieldGroup: [ { qualifier: 'Admin', position: 20 } ] }
   CreatedAt;
   
-  @UI.identification: [ {
-    position: 70 
-  } ]
-  @UI.lineItem: [ {
-    position: 70 
-  } ]
-  @UI.selectionField: [ {
-    position: 70 
-  } ]
+  @UI: { fieldGroup: [ { qualifier: 'Admin', position: 30 } ] }
   LocalLastChangedBy;
   
-  @UI.identification: [ {
-    position: 80 
-  } ]
-  @UI.lineItem: [ {
-    position: 80 
-  } ]
-  @UI.selectionField: [ {
-    position: 80 
-  } ]
+  @UI: { fieldGroup: [ { qualifier: 'Admin', position: 40 } ] }
   LocalLastChangedAt;
   
-  @UI.identification: [ {
-    position: 90 
-  } ]
-  @UI.lineItem: [ {
-    position: 90 
-  } ]
-  @UI.selectionField: [ {
-    position: 90 
-  } ]
+  @UI.hidden: true
   LastChangedAt;
-  
-  @EndUserText.label: '_BaseEntity'
-  @UI.identification: [ {
-    position: 100 , 
-    label: '_BaseEntity'
-  } ]
-  @UI.lineItem: [ {
-    position: 100 , 
-    label: '_BaseEntity'
-  } ]
-  @UI.selectionField: [ {
-    position: 100 
-  } ]
-  _BaseEntity;
 }
